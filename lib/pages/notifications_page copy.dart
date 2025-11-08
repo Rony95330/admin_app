@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
 import '../../theme/brand_colors.dart';
 import 'notification_create_page.dart';
-
-// SnackBar + ErrorStateView
-
-// 👉 Si tu as une page détail dans l'admin, importe-la ici.
-// Sinon, si tu veux ouvrir la page détail "utilisateur", adapte l'import.
-// import 'package:app_cfecgc_af/pages/notifications/notification_detail_page.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -41,13 +36,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
     super.dispose();
   }
 
+  /// 🔹 Récupération des notifications complètes
   Future<void> _fetchNotifications() async {
     setState(() => _loading = true);
     try {
       final res = await supa
           .from('notification_outbox')
           .select(
-            'id, type, message, cse, niveau, metier, status, created_at, author_id',
+            'id, type, message, cse, niveau, secteur, status, created_at, author_id, filters',
           )
           .order(_sortColumn, ascending: _sortAsc);
 
@@ -65,12 +61,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
         }).toList();
       });
     } catch (e) {
+      debugPrint('❌ Erreur chargement notifications: $e');
       setState(() => _status = 'Erreur chargement : $e');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      setState(() => _loading = false);
     }
   }
 
+  /// 🔸 Supprimer une notification
   Future<void> _deleteNotification(String id) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -97,7 +95,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
     try {
       await supa.from('notification_outbox').delete().eq('id', id);
-      await _fetchNotifications();
+      _fetchNotifications();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -126,20 +124,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
       }
     });
     _fetchNotifications();
-  }
-
-  void _openDetail(String id) {
-    // 👉 Si tu as une page détail d’admin, pousse-la ici.
-    // Navigator.push(
-    //   context,
-    //   MaterialPageRoute(
-    //     builder: (_) => NotificationDetailPage(notificationId: id),
-    //   ),
-    // );
-    // Pour l’instant on montre un petit snackbar pour confirmer le clic.
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Ouvrir le détail pour $id')));
   }
 
   @override
@@ -191,7 +175,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       controller: _hCtrl,
                       scrollDirection: Axis.horizontal,
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(minWidth: 1200),
+                        // Ajuste la largeur minimale pour forcer le scroll horizontal si nécessaire
+                        constraints: const BoxConstraints(minWidth: 1100),
                         child: DataTable(
                           sortAscending: _sortAsc,
                           headingRowColor: WidgetStateProperty.all(
@@ -219,8 +204,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                               onSort: (_, __) => _sortBy('niveau'),
                             ),
                             DataColumn(
-                              label: const Text('Métier'),
-                              onSort: (_, __) => _sortBy('metier'),
+                              label: const Text('Secteur'),
+                              onSort: (_, __) => _sortBy('secteur'),
                             ),
                             DataColumn(
                               label: const Text('Auteur'),
@@ -237,31 +222,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             const DataColumn(label: Text('Actions')),
                           ],
                           rows: _notifications.map((row) {
-                            final id = (row['id'] ?? '').toString();
                             return DataRow(
                               cells: [
-                                DataCell(
-                                  Text(id),
-                                  onTap: () => _openDetail(id),
-                                ),
-                                DataCell(
-                                  InkWell(
-                                    onTap: () => _openDetail(id),
-                                    child: Text(
-                                      row['type'] ?? '',
-                                      style: const TextStyle(
-                                        decoration: TextDecoration.underline,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                DataCell(
-                                  Text(row['message'] ?? ''),
-                                  onTap: () => _openDetail(id),
-                                ),
+                                DataCell(Text(row['id'].toString())),
+                                DataCell(Text(row['type'] ?? '')),
+                                DataCell(Text(row['message'] ?? '')),
                                 DataCell(Text(row['cse'] ?? '')),
                                 DataCell(Text(row['niveau'] ?? '')),
-                                DataCell(Text(row['metier'] ?? '')),
+                                DataCell(Text(row['secteur'] ?? '')),
                                 DataCell(Text(row['author_name'] ?? '-')),
                                 DataCell(Text(row['status'] ?? '')),
                                 DataCell(
@@ -280,7 +248,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
                                       color: AppColors.rouge,
                                     ),
                                     tooltip: 'Supprimer',
-                                    onPressed: () => _deleteNotification(id),
+                                    onPressed: () =>
+                                        _deleteNotification(row['id']),
                                   ),
                                 ),
                               ],

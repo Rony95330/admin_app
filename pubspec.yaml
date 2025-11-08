@@ -1,8 +1,8 @@
 name: admin_app
-description: "A new Flutter project."
+description: "A Admin Console to manage app cfe_cgc_af."
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.0+2002R
 
 environment:
   sdk: ^3.8.1
@@ -10,26 +10,34 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  permission_handler: ^12.0.1
   # Icônes iOS style Cupertino
   cupertino_icons: ^1.0.8
 
   # Supabase
   supabase_flutter: ^2.10.1
 
-  # 🔔 Notifications locales
-  flutter_local_notifications: ^17.2.1
+  # 🔔 Notifications locales (multi-plateforme)
+  flutter_local_notifications: ^19.4.2
+
+  # Pour ouvrir des liens (utile dans beaucoup d’apps admin)
+  url_launcher: ^6.3.2
+  google_fonts: ^6.3.2
+  intl: ^0.20.2
+  file_picker: ^10.3.3
+  pdfx: ^2.9.2
+  path: ^1.9.1
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   # Lints recommandés
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true
 
-  # Tu peux décommenter et ajouter tes assets si besoin
+  # Décommente si tu ajoutes des images ou ressources
   # assets:
   #   - assets/images/
