@@ -46,7 +46,7 @@ class MultiChips extends StatefulWidget {
 }
 
 class _MultiChipsState extends State<MultiChips> {
-  late List<String> _selected = [...widget.selected];
+  late final List<String> _selected = [...widget.selected];
 
   @override
   Widget build(BuildContext context) {
@@ -296,7 +296,7 @@ class _TractSelectorDialogState extends State<TractSelectorDialog> {
                         ? const Center(child: Text('Aucun tract trouvé'))
                         : ListView.separated(
                             itemCount: filtered.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, _) =>
                                 const Divider(height: 1),
                             itemBuilder: (_, i) {
                               final t = filtered[i];
@@ -654,7 +654,7 @@ class _NotificationCreatePageState extends State<NotificationCreatePage> {
         'sound': _selectedType?.sound,
         'color_hex': _selectedType == null
             ? null
-            : '#${_selectedType!.color.value.toRadixString(16).padLeft(8, '0').substring(2)}',
+            : '#${_selectedType!.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}',
         'icon_hint': _selectedType?.icon.codePoint,
         'population': _popSelected.toList(),
       };
@@ -690,8 +690,11 @@ class _NotificationCreatePageState extends State<NotificationCreatePage> {
       if (res.status >= 400) {
         setState(() => _status = '❌ Erreur: ${res.data}');
       } else {
-        setState(() => _status = '✅ Notification envoyée !');
+        setState(() => _status = null);
         _resetForm();
+        if (!mounted) return;
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        messenger?.clearSnackBars();
       }
     } catch (e) {
       setState(() => _status = '❌ Erreur: $e');
@@ -755,7 +758,9 @@ class _NotificationCreatePageState extends State<NotificationCreatePage> {
                             children: [
                               CircleAvatar(
                                 radius: 14,
-                                backgroundColor: pt.color.withOpacity(.15),
+                                backgroundColor: pt.color.withValues(
+                                  alpha: .15,
+                                ),
                                 child: Icon(pt.icon, size: 16, color: pt.color),
                               ),
                               const SizedBox(width: 10),
@@ -806,7 +811,9 @@ class _NotificationCreatePageState extends State<NotificationCreatePage> {
                   alignment: Alignment.centerLeft,
                   child: Chip(
                     avatar: CircleAvatar(
-                      backgroundColor: _selectedType!.color.withOpacity(.15),
+                      backgroundColor: _selectedType!.color.withValues(
+                        alpha: .15,
+                      ),
                       child: Icon(
                         _selectedType!.icon,
                         size: 16,

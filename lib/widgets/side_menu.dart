@@ -17,22 +17,30 @@ class SideMenu extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
 
+    // 🧭 Ordre synchronisé avec AdminHome._pages
     final menuItems = [
-      {'icon': Icons.dashboard_outlined, 'label': 'Tableau de bord'},
-      {'icon': Icons.storage_rounded, 'label': 'Base de données'},
-      {'icon': Icons.notifications_active_outlined, 'label': 'Notifications'},
-      {'icon': Icons.people_outline, 'label': 'Sessions actives'},
-      {'icon': Icons.list_alt_outlined, 'label': 'Actualités publiées'}, // 📰
+      {'icon': Icons.dashboard_outlined, 'label': 'Tableau de bord'}, // 0
+      {'icon': Icons.storage_rounded, 'label': 'Base de données'}, // 1
+      {
+        'icon': Icons.notifications_active_outlined,
+        'label': 'Notifications',
+      }, // 2
+      {'icon': Icons.people_outline, 'label': 'Sessions actives'}, // 3
+      {'icon': Icons.list_alt_outlined, 'label': 'Actualités publiées'}, // 4
+      {'icon': Icons.picture_as_pdf_outlined, 'label': 'Revue de presse'}, // 5
+      {
+        'icon': Icons.poll,
+        'label': 'Questionnaires',
+      }, // 6 ✅ corrigé (même structure que les autres)
     ];
 
     return Container(
       width: 250,
-      color: cs.primary.withOpacity(0.05),
+      color: cs.primary.withValues(alpha: 0.05), // ✅ remplace withOpacity
       child: Column(
         children: [
           const SizedBox(height: 40),
 
-          // 🔹 En-tête / logo
           Text(
             'CFE-CGC\nAdmin Console',
             textAlign: TextAlign.center,
@@ -44,12 +52,11 @@ class SideMenu extends StatelessWidget {
           ),
           const SizedBox(height: 32),
 
-          // 🔹 Liste de navigation
           Expanded(
             child: ListView.builder(
               itemCount: menuItems.length,
               itemBuilder: (context, index) {
-                final item = menuItems[index];
+                final item = menuItems[index] as Map<String, dynamic>;
                 return _buildMenuButton(
                   context,
                   index,
@@ -63,12 +70,11 @@ class SideMenu extends StatelessWidget {
           const Divider(thickness: 0.8, height: 1),
           const SizedBox(height: 12),
 
-          // 🔹 Déconnexion
           Padding(
             padding: const EdgeInsets.only(bottom: 20),
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: cs.errorContainer.withOpacity(0.85),
+                backgroundColor: cs.errorContainer.withValues(alpha: 0.85),
                 foregroundColor: cs.onErrorContainer,
                 padding: const EdgeInsets.symmetric(
                   vertical: 12,
@@ -109,17 +115,21 @@ class SideMenu extends StatelessWidget {
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected ? cs.primary : cs.onSurface.withOpacity(0.7),
+        color: isSelected
+            ? cs.primary
+            : cs.onSurface.withValues(alpha: 0.7), // ✅ remplacement
       ),
       title: Text(
         label,
         style: TextStyle(
-          color: isSelected ? cs.primary : cs.onSurface.withOpacity(0.8),
+          color: isSelected
+              ? cs.primary
+              : cs.onSurface.withValues(alpha: 0.8), // ✅ remplacement
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
       selected: isSelected,
-      selectedTileColor: cs.primary.withOpacity(0.1),
+      selectedTileColor: cs.primary.withValues(alpha: 0.1), // ✅ remplacement
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       onTap: () => onItemSelected(index),
     );

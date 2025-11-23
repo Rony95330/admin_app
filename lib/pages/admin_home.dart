@@ -1,11 +1,12 @@
+import 'admin/questionnaire_editor_page.dart';
+import 'package:admin_app/pages/revue_presse_list_page.dart';
 import 'package:flutter/material.dart';
 import '../widgets/side_menu.dart';
 import 'admin/active_sessions_page.dart';
 import 'dashboard_page.dart';
 import 'database_page.dart';
 import 'notifications_page.dart';
-import 'actuality_list_page.dart'; // ✅ nouvelle page à créer
-//import 'actuality_update_page.dart'; // ✅ page actuelle
+import 'actuality_list_page.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -22,7 +23,9 @@ class _AdminHomeState extends State<AdminHome> {
     DatabasePage(),
     NotificationsPage(),
     ActiveSessionsPage(),
-    ActualityListPage(), // 📰 la liste des actualités
+    ActualityListPage(),
+    RevuePresseListPage(),
+    QuestionnaireEditorPage(), // ✅ nouvelle page
   ];
 
   @override
@@ -32,15 +35,12 @@ class _AdminHomeState extends State<AdminHome> {
     return Scaffold(
       body: Row(
         children: [
-          // 🧭 Menu latéral
           SideMenu(
             selectedIndex: _selectedIndex,
             onItemSelected: (index) {
               setState(() => _selectedIndex = index);
             },
           ),
-
-          // 🧩 Contenu principal
           Expanded(
             child: Container(
               color: cs.surface,

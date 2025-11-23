@@ -23,6 +23,8 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
   final _titleCtl = TextEditingController();
   final _descCtl = TextEditingController();
   final _cseCtl = TextEditingController();
+  final _dateCtl = TextEditingController(); // 🗓 contrôleur pour saisie de date
+
   DateTime _date = DateTime.now();
 
   PlatformFile? _pickedPdf;
@@ -36,6 +38,8 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
     super.initState();
     _loadCseOptions();
     _titleCtl.addListener(_recomputeCanPublish);
+    // initialise le champ date avec la date du jour
+    _dateCtl.text = DateFormat('dd/MM/yyyy').format(_date);
   }
 
   @override
@@ -44,6 +48,7 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
     _titleCtl.dispose();
     _descCtl.dispose();
     _cseCtl.dispose();
+    _dateCtl.dispose();
     super.dispose();
   }
 
@@ -107,20 +112,35 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
     }
   }
 
-  /// ✅ Correction : `height` désormais obligatoire dans `PdfPage.render`
+  /// 🗓 Choix de la date via calendrier
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) {
+      setState(() {
+        _date = picked;
+        _dateCtl.text = DateFormat('dd/MM/yyyy').format(_date);
+      });
+    }
+  }
+
+  /// Rendu de miniature PDF
   Future<Uint8List?> _renderPdfThumb(File file) async {
     try {
       final doc = await PdfDocument.openFile(file.path);
       final page = await doc.getPage(1);
 
-      // 🔹 Calcul proportionnel pour garder le bon ratio
       const double targetWidth = 600.0;
       final double scale = targetWidth / page.width;
       final double targetHeight = page.height * scale;
 
       final img = await page.render(
         width: targetWidth,
-        height: targetHeight, // ✅ requis par pdfx >= 2.5
+        height: targetHeight,
         format: PdfPageImageFormat.png,
       );
 
@@ -208,6 +228,7 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
         'pdf_url': pdfUrl,
         'thumb_url': thumbUrl,
         'storage_path': pdfStoragePath,
+        // 👉 on utilise la date choisie (saisie ou calendrier)
         'published_at': DateFormat('yyyy-MM-dd').format(_date),
         'author': supa.auth.currentUser?.id,
       });
@@ -226,6 +247,8 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
         _descCtl.clear();
         _pickedPdf = null;
         _saving = false;
+        _date = DateTime.now();
+        _dateCtl.text = DateFormat('dd/MM/yyyy').format(_date);
       });
       _recomputeCanPublish();
     } catch (e) {
@@ -288,7 +311,48 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
                         Text(
                           'Auteur : ${supa.auth.currentUser?.email ?? "Inconnu"}',
                         ),
-                        Text('Date : ${fmt.format(_date)}'),
+                        const SizedBox(height: 12),
+
+                        // 🗓 Champ texte + calendrier
+                        TextFormField(
+                          controller: _dateCtl,
+                          decoration: InputDecoration(
+                            labelText: 'Date de publication *',
+                            border: const OutlineInputBorder(),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.calendar_today),
+                              tooltip: 'Choisir dans le calendrier',
+                              onPressed: _pickDate,
+                            ),
+                          ),
+                          keyboardType: TextInputType.datetime,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Date requise';
+                            }
+                            try {
+                              DateFormat('dd/MM/yyyy').parseStrict(value);
+                            } catch (_) {
+                              return 'Format attendu : jj/mm/aaaa';
+                            }
+                            return null;
+                          },
+                          onChanged: (value) {
+                            try {
+                              final parsed = DateFormat(
+                                'dd/MM/yyyy',
+                              ).parseStrict(value);
+                              setState(() => _date = parsed);
+                            } catch (_) {
+                              // on ignore tant que la date n’est pas valide
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Actuelle : ${fmt.format(_date)}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
