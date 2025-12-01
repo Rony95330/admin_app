@@ -21,25 +21,39 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
   final _titreController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  final List<String> _allCseCodes = [
-    'HUB',
-    'COURT_COURRIER',
-    'CENTRAL',
-    'CSE1',
-    'CSE2',
+  /// Liste des CSE (issue de liste_cse_rows.csv)
+  final List<String> _allCseCodes = const [
+    'CSE EXPLOITATION COURT COURRIER',
+    "CSE SYSTEMES D'INFORMATION",
+    'CSE INDUSTRIEL',
+    'CSE EXPLOITATION HUB',
+    'CSE PILOTAGE ECONOMIQUE',
+    'CSE AIR FRANCE CARGO',
+    'CSE EXPLOITATION AERIENNE',
   ];
 
+  /// CSE sélectionnés (vide = tous)
   final List<String> _selectedCse = [];
-  final List<String> _categories = ['technicien', 'cadre', 'ouvrier'];
+
+  /// Niveaux
+  final List<String> _categories = const [
+    'Cadres',
+    'Employés',
+    'Managers',
+    'Techniciens',
+  ];
   final List<String> _selectedCategories = [];
 
-  final List<String> _publics = [
-    'ALL',
-    'militants',
-    'adherents',
-    'sympathisants',
-  ];
-  String _selectedPublic = 'ALL';
+  /// Population visée : codes => libellés
+  final Map<String, String> _publics = const {
+    'ALL': 'Tous',
+    'MILITANTS': 'Militants',
+    'ADHERENTS': 'Adhérents',
+    'ENROLES': 'Enrolés',
+  };
+
+  /// Codes sélectionnés (vide = ALL implicite)
+  final List<String> _selectedPublics = [];
 
   DateTime? _dateDebut;
   DateTime? _dateFin;
@@ -84,7 +98,7 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
           id: const Uuid().v4(),
           label: '',
           type: QuestionType.text,
-          options: [],
+          options: const [],
           required: true,
         ),
       );
@@ -93,9 +107,7 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
 
   void _removeQuestion(QuestionnaireQuestion q) {
     setState(() {
-      _questions.removeWhere((QuestionnaireQuestion element) {
-        return element.id == q.id;
-      });
+      _questions.removeWhere((element) => element.id == q.id);
     });
   }
 
@@ -111,11 +123,28 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
       return;
     }
 
-    if (_selectedCse.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sélectionne au moins un CSE.')),
-      );
-      return;
+    // Vérif rapide : les questions à choix doivent avoir des options
+    for (final q in _questions) {
+      if ((q.type == QuestionType.singleChoice ||
+              q.type == QuestionType.multipleChoice) &&
+          q.options.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'La question "${q.label.isEmpty ? 'sans titre' : q.label}" est à choix mais sans options.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    // Gestion "Tous" pour la population :
+    List<String> publicsCodes = List<String>.from(_selectedPublics);
+    if (publicsCodes.isEmpty) {
+      publicsCodes = ['ALL'];
+    } else if (publicsCodes.contains('ALL')) {
+      publicsCodes = ['ALL'];
     }
 
     setState(() {
@@ -124,16 +153,17 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
 
     try {
       final questionnaire = Questionnaire(
-        titre: _titreController.text.trim(),
+        title: _titreController.text.trim(),
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
-        cseTarget: List<String>.from(_selectedCse),
-        publicCible: _selectedPublic,
-        categories: List<String>.from(_selectedCategories),
+        cseTargets: List<String>.from(_selectedCse),
+        populationRaw: publicsCodes,
+        levelTargets: List<String>.from(_selectedCategories),
+        metierTargets: const [],
+        startDate: _dateDebut,
+        endDate: _dateFin,
         questions: List<QuestionnaireQuestion>.from(_questions),
-        dateDebut: _dateDebut,
-        dateFin: _dateFin,
       );
 
       final created = await _service.createQuestionnaire(questionnaire);
@@ -208,7 +238,7 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
                   const SizedBox(height: 16),
 
                   // CSE ciblés
-                  Text('CSE ciblés *', style: theme.textTheme.titleMedium),
+                  Text('CSE ciblés', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -230,36 +260,59 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
                       );
                     }).toList(),
                   ),
-                  const SizedBox(height: 16),
-
-                  // Public cible
-                  Text('Public cible', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    value: _selectedPublic,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _publics
-                        .map(
-                          (p) => DropdownMenuItem<String>(
-                            value: p,
-                            child: Text(p),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setState(() {
-                        _selectedPublic = value;
-                      });
-                    },
+                  const SizedBox(height: 4),
+                  Text(
+                    'Si aucun CSE n’est sélectionné, le questionnaire sera envoyé à tous.',
+                    style: theme.textTheme.bodySmall,
                   ),
                   const SizedBox(height: 16),
 
-                  // Catégories
+                  // Population visée
+                  Text('Population visée', style: theme.textTheme.titleMedium),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: _publics.entries.map((entry) {
+                      final code = entry.key;
+                      final label = entry.value;
+                      final selected = _selectedPublics.contains(code);
+                      return FilterChip(
+                        label: Text(label),
+                        selected: selected,
+                        onSelected: (value) {
+                          setState(() {
+                            if (code == 'ALL') {
+                              if (value) {
+                                _selectedPublics
+                                  ..clear()
+                                  ..add('ALL');
+                              } else {
+                                _selectedPublics.remove('ALL');
+                              }
+                            } else {
+                              if (value) {
+                                _selectedPublics.add(code);
+                                _selectedPublics.remove('ALL');
+                              } else {
+                                _selectedPublics.remove(code);
+                              }
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 4),
                   Text(
-                    'Catégories (optionnel)',
+                    'Si rien n’est sélectionné ou si "Tous" est coché, le questionnaire sera envoyé à tous.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Niveaux
+                  Text(
+                    'Niveaux ciblés (optionnel)',
                     style: theme.textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
@@ -283,9 +336,14 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
                       );
                     }).toList(),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Si aucun niveau n’est sélectionné, le questionnaire sera envoyé à tous les niveaux.',
+                    style: theme.textTheme.bodySmall,
+                  ),
                   const SizedBox(height: 16),
 
-                  // Dates
+                  // Période de validité
                   Text(
                     'Période de validité (optionnel)',
                     style: theme.textTheme.titleMedium,
@@ -333,7 +391,7 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
                     ),
                   const SizedBox(height: 8),
 
-                  ..._questions.map((QuestionnaireQuestion q) {
+                  ..._questions.map((q) {
                     final index = _questions.indexOf(q) + 1;
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 6),
@@ -365,33 +423,50 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
                               onChanged: (value) {
                                 q.label = value;
                               },
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Cette question doit avoir un intitulé.';
+                                }
+                                return null;
+                              },
                             ),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<QuestionType>(
-                              initialValue: q.type,
+                              value: q.type,
                               decoration: const InputDecoration(
                                 labelText: 'Type de question',
                                 border: OutlineInputBorder(),
                               ),
-                              items: [
+                              items: const [
                                 DropdownMenuItem<QuestionType>(
                                   value: QuestionType.text,
-                                  child: const Text('Texte libre'),
+                                  child: Text('Texte libre'),
+                                ),
+                                DropdownMenuItem<QuestionType>(
+                                  value: QuestionType.yesNo,
+                                  child: Text('Oui / Non'),
                                 ),
                                 DropdownMenuItem<QuestionType>(
                                   value: QuestionType.singleChoice,
-                                  child: const Text('Choix unique'),
+                                  child: Text('Choix unique'),
                                 ),
                                 DropdownMenuItem<QuestionType>(
                                   value: QuestionType.multipleChoice,
-                                  child: const Text('Choix multiple'),
+                                  child: Text('Choix multiple'),
+                                ),
+                                DropdownMenuItem<QuestionType>(
+                                  value: QuestionType.likert1to5,
+                                  child: Text('Échelle 1 à 5'),
                                 ),
                               ],
                               onChanged: (value) {
                                 if (value == null) return;
                                 setState(() {
                                   q.type = value;
-                                  if (q.type == QuestionType.text) {
+                                  // Pour les types sans options libres, on vide la liste
+                                  if (q.type == QuestionType.text ||
+                                      q.type == QuestionType.yesNo ||
+                                      q.type == QuestionType.likert1to5) {
                                     q.options = [];
                                   }
                                 });
@@ -405,6 +480,7 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
                                 decoration: const InputDecoration(
                                   labelText:
                                       'Options (séparées par des virgules)',
+                                  hintText: 'Ex : Oui, Non, Peut-être',
                                   border: OutlineInputBorder(),
                                 ),
                                 onChanged: (value) {
@@ -414,6 +490,16 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
                                       .where((s) => s.isNotEmpty)
                                       .toList();
                                 },
+                              )
+                            else if (q.type == QuestionType.yesNo)
+                              const Text(
+                                'Réponses possibles : Oui / Non (fixes)',
+                                style: TextStyle(fontStyle: FontStyle.italic),
+                              )
+                            else if (q.type == QuestionType.likert1to5)
+                              const Text(
+                                'Échelle de 1 (faible) à 5 (fort).',
+                                style: TextStyle(fontStyle: FontStyle.italic),
                               ),
                             const SizedBox(height: 8),
                             Row(

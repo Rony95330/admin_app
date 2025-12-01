@@ -18,6 +18,14 @@ class SideMenu extends StatelessWidget {
     final text = Theme.of(context).textTheme;
 
     // 🧭 Ordre synchronisé avec AdminHome._pages
+    // 0: DashboardPage()
+    // 1: DatabasePage()
+    // 2: NotificationsPage()
+    // 3: ActiveSessionsPage()
+    // 4: ActualityListPage()
+    // 5: PressReviewPage()
+    // 6: GoodiesAdminPage()     // 👈 à ajouter dans AdminHome
+    // 7: QuestionnairePage()
     final menuItems = [
       {'icon': Icons.dashboard_outlined, 'label': 'Tableau de bord'}, // 0
       {'icon': Icons.storage_rounded, 'label': 'Base de données'}, // 1
@@ -29,14 +37,15 @@ class SideMenu extends StatelessWidget {
       {'icon': Icons.list_alt_outlined, 'label': 'Actualités publiées'}, // 4
       {'icon': Icons.picture_as_pdf_outlined, 'label': 'Revue de presse'}, // 5
       {
-        'icon': Icons.poll,
-        'label': 'Questionnaires',
-      }, // 6 ✅ corrigé (même structure que les autres)
+        'icon': Icons.card_giftcard_outlined,
+        'label': 'Gestion des goodies',
+      }, // 6 🆕
+      {'icon': Icons.poll, 'label': 'Questionnaires'}, // 7
     ];
 
     return Container(
       width: 250,
-      color: cs.primary.withValues(alpha: 0.05), // ✅ remplace withOpacity
+      color: cs.primary.withValues(alpha: 0.05),
       child: Column(
         children: [
           const SizedBox(height: 40),
@@ -115,21 +124,17 @@ class SideMenu extends StatelessWidget {
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected
-            ? cs.primary
-            : cs.onSurface.withValues(alpha: 0.7), // ✅ remplacement
+        color: isSelected ? cs.primary : cs.onSurface.withValues(alpha: 0.7),
       ),
       title: Text(
         label,
         style: TextStyle(
-          color: isSelected
-              ? cs.primary
-              : cs.onSurface.withValues(alpha: 0.8), // ✅ remplacement
+          color: isSelected ? cs.primary : cs.onSurface.withValues(alpha: 0.8),
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
       selected: isSelected,
-      selectedTileColor: cs.primary.withValues(alpha: 0.1), // ✅ remplacement
+      selectedTileColor: cs.primary.withValues(alpha: 0.1),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       onTap: () => onItemSelected(index),
     );

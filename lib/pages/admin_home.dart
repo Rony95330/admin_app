@@ -1,12 +1,14 @@
-import 'admin/questionnaire_editor_page.dart';
-import 'package:admin_app/pages/revue_presse_list_page.dart';
 import 'package:flutter/material.dart';
+
 import '../widgets/side_menu.dart';
-import 'admin/active_sessions_page.dart';
 import 'dashboard_page.dart';
 import 'database_page.dart';
 import 'notifications_page.dart';
+import 'admin/active_sessions_page.dart';
 import 'actuality_list_page.dart';
+import 'package:admin_app/pages/revue_presse_list_page.dart';
+import 'admin/goodies_admin_page.dart'; // 👈 NEW
+import 'admin/questionnaire_editor_page.dart';
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -19,13 +21,14 @@ class _AdminHomeState extends State<AdminHome> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = const [
-    DashboardPage(),
-    DatabasePage(),
-    NotificationsPage(),
-    ActiveSessionsPage(),
-    ActualityListPage(),
-    RevuePresseListPage(),
-    QuestionnaireEditorPage(), // ✅ nouvelle page
+    DashboardPage(), // 0
+    DatabasePage(), // 1
+    NotificationsPage(), // 2
+    ActiveSessionsPage(), // 3
+    ActualityListPage(), // 4
+    RevuePresseListPage(), // 5
+    GoodiesAdminPage(), // 6 🆕
+    QuestionnaireEditorPage(), // 7
   ];
 
   @override

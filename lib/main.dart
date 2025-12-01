@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'theme/app_theme.dart';
 import 'pages/login_page.dart';
 import 'pages/admin_home.dart'; // ✅ nouvelle import
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,17 @@ class AdminApp extends StatelessWidget {
       home: Supabase.instance.client.auth.currentUser == null
           ? const LoginPage()
           : const AdminHome(), // ✅ redirection auto
+      // ⬇️ Ajoute ça
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('fr', 'FR'),
+        // tu peux ajouter d’autres locales ici si besoin
+      ],
+      locale: const Locale('fr', 'FR'), // optionnel : force le FR
     );
   }
 }

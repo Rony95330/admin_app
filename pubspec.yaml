@@ -19,6 +19,8 @@ dependencies:
 
   # 🔔 Notifications locales (multi-plateforme)
   flutter_local_notifications: ^19.4.2
+  flutter_localizations:
+    sdk: flutter
 
   # Pour ouvrir des liens (utile dans beaucoup d’apps admin)
   url_launcher: ^6.3.2
@@ -29,6 +31,7 @@ dependencies:
   path: ^1.9.1
   webview_flutter: ^4.13.0
   uuid: ^4.5.2
+  image_picker: ^1.2.1
 
 dev_dependencies:
   flutter_test:
