@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/brand_colors.dart';
@@ -12,9 +13,20 @@ class ActiveSessionsPage extends StatefulWidget {
 
 class _ActiveSessionsPageState extends State<ActiveSessionsPage> {
   final supabase = Supabase.instance.client;
+
   List<Map<String, dynamic>> _sessions = [];
   bool _loading = true;
   Timer? _autoRefreshTimer;
+
+  // ✅ Toggle pour afficher/masquer les sessions inactives
+  bool _showInactive = true;
+
+  // ✅ Active/désactive les logs en console
+  static const bool _debugSessions = true;
+
+  void _log(String msg) {
+    if (_debugSessions) debugPrint('🧪 [ActiveSessions] $msg');
+  }
 
   @override
   void initState() {
@@ -37,22 +49,65 @@ class _ActiveSessionsPageState extends State<ActiveSessionsPage> {
     });
   }
 
-  /// 🔹 Récupère les sessions actives
+  /// 🔹 Récupère les sessions (app + console)
   Future<void> _fetchSessions({bool silent = false}) async {
-    if (!silent) setState(() => _loading = true);
+    if (!silent && mounted) setState(() => _loading = true);
+
+    final session = supabase.auth.currentSession;
+    final user = session?.user;
+
+    _log('Auth currentSession = ${session == null ? "NULL" : "OK"}');
+    _log('Auth user = ${user?.id ?? "NULL"}');
+
     try {
+      _log('SELECT user_sessions ...');
+
       final data = await supabase
           .from('user_sessions')
-          .select('user_id, matriculeaf, cse, level, last_activity, is_active')
+          .select(
+            'id, user_id, matriculeaf, cse, level, client_kind, device_id, last_activity, is_active',
+          )
           .order('last_activity', ascending: false);
 
-      setState(() {
-        _sessions = List<Map<String, dynamic>>.from(data);
-      });
+      var list = List<Map<String, dynamic>>.from(data);
+
+      if (!_showInactive) {
+        list = list.where((r) => r['is_active'] == true).toList();
+      }
+
+      _log('SELECT OK: rows=${list.length}');
+
+      if (list.isNotEmpty) {
+        final keys = list.first.keys.toList()..sort();
+        _log('First row keys: $keys');
+      }
+
+      final adminConsoleRows = list.where(
+        (r) => (r['client_kind']?.toString() == 'admin_console'),
+      );
+      _log('Rows client_kind=admin_console: ${adminConsoleRows.length}');
+
+      final myRows = (user == null)
+          ? <Map<String, dynamic>>[]
+          : list.where((r) => r['user_id']?.toString() == user.id).toList();
+      _log('Rows for current user_id: ${myRows.length}');
+
+      if (mounted) {
+        setState(() => _sessions = list);
+      }
     } catch (e) {
-      debugPrint('❌ Erreur fetch sessions: $e');
+      _log('❌ SELECT FAILED: $e');
+
+      if (mounted && !silent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lecture user_sessions: $e'),
+            backgroundColor: AppColors.rouge,
+          ),
+        );
+      }
     } finally {
-      if (!silent) setState(() => _loading = false);
+      if (mounted && !silent) setState(() => _loading = false);
     }
   }
 
@@ -65,14 +120,27 @@ class _ActiveSessionsPageState extends State<ActiveSessionsPage> {
     return "${diff.inDays} j";
   }
 
-  /// 🔴 Déconnecte tout le monde via la fonction SQL
+  String _formatClientKind(String? kind) {
+    final k = (kind ?? '').toLowerCase().trim();
+    if (k == 'admin_console') return 'CONSOLE';
+    return 'APP';
+  }
+
+  Color _clientKindColor(String? kind) {
+    final k = (kind ?? '').toLowerCase().trim();
+    if (k == 'admin_console') return AppColors.marine;
+    return AppColors.ardoise;
+  }
+
+  /// 🔴 Déconnecte tout le monde (sauf consoles admin si param true)
   Future<void> _forceLogoutAll() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Déconnecter tout le monde ?'),
         content: const Text(
-          "Cette action mettra fin à toutes les sessions actives immédiatement.",
+          "Cette action mettra fin à toutes les sessions actives immédiatement.\n"
+          "Les sessions 'CONSOLE' admin peuvent être conservées.",
         ),
         actions: [
           TextButton(
@@ -91,17 +159,26 @@ class _ActiveSessionsPageState extends State<ActiveSessionsPage> {
     if (confirm != true) return;
 
     try {
-      await supabase.rpc('purge_sessions');
+      _log('RPC purge_sessions(p_keep_admin_console=true) ...');
+      await supabase.rpc(
+        'purge_sessions',
+        params: {'p_keep_admin_console': true},
+      );
+      _log('RPC purge_sessions OK');
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ Tous les utilisateurs ont été déconnectés.'),
+          content: Text('✅ Déconnexion de masse effectuée.'),
           backgroundColor: AppColors.vert,
         ),
       );
 
-      await _fetchSessions(); // 🔄 rafraîchit la liste
+      // ✅ IMPORTANT: on refetch systématiquement pour refléter l’état réel en base
+      await _fetchSessions();
     } catch (e) {
-      debugPrint('❌ Erreur purge_sessions: $e');
+      _log('❌ RPC purge_sessions FAILED: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erreur : $e'),
@@ -111,15 +188,16 @@ class _ActiveSessionsPageState extends State<ActiveSessionsPage> {
     }
   }
 
-  /// 🔹 Déconnecte une session spécifique
+  /// 🔹 Déconnecte une session spécifique (par id de ligne)
   Future<void> _disconnectSingleSession(Map<String, dynamic> session) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Déconnecter cet utilisateur ?'),
+        title: const Text('Déconnecter cette session ?'),
         content: Text(
-          'Voulez-vous vraiment déconnecter le matricule '
-          '${session['matriculeaf'] ?? 'inconnu'} ?',
+          'Voulez-vous vraiment déconnecter la session du matricule '
+          '${session['matriculeaf'] ?? 'inconnu'} '
+          '(${_formatClientKind(session['client_kind'])}) ?',
         ),
         actions: [
           TextButton(
@@ -141,25 +219,31 @@ class _ActiveSessionsPageState extends State<ActiveSessionsPage> {
     if (confirm != true) return;
 
     try {
-      await supabase.rpc(
-        'disconnect_session',
-        params: {'p_user_id': session['user_id']},
-      );
+      final rowId = session['id'];
+      if (rowId == null) throw Exception('Session id manquant');
 
+      _log('RPC disconnect_session_by_id(id=$rowId) ...');
+      await supabase.rpc(
+        'disconnect_session_by_id',
+        params: {'p_session_row_id': rowId},
+      );
+      _log('RPC disconnect_session_by_id OK');
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '✅ Utilisateur ${session['matriculeaf'] ?? ''} déconnecté.',
+            '✅ Session ${session['matriculeaf'] ?? ''} (${_formatClientKind(session['client_kind'])}) déconnectée.',
           ),
           backgroundColor: AppColors.vert,
         ),
       );
 
-      setState(() {
-        _sessions.removeWhere((s) => s['user_id'] == session['user_id']);
-      });
+      // ✅ IMPORTANT: on refetch pour refléter l’état réel en base (is_active=false, etc.)
+      await _fetchSessions(silent: true);
     } catch (e) {
-      debugPrint('❌ Erreur disconnect_session: $e');
+      _log('❌ RPC disconnect_session_by_id FAILED: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erreur : $e'),
@@ -198,7 +282,7 @@ class _ActiveSessionsPageState extends State<ActiveSessionsPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Utilisateurs actifs : ${_sessions.length}',
+                        'Sessions : ${_sessions.length}',
                         style: text.titleMedium?.copyWith(
                           color: cs.onSurface,
                           fontWeight: FontWeight.bold,
@@ -218,83 +302,138 @@ class _ActiveSessionsPageState extends State<ActiveSessionsPage> {
                           ),
                         ),
                         icon: const Icon(Icons.power_settings_new),
-                        label: const Text("Déconnecter tout le monde"),
+                        label: const Text("Déconnecter tout (hors console)"),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
 
-                  // 🧾 Tableau des sessions
+                  // ✅ Toggle affichage inactifs (évite la confusion)
+                  Row(
+                    children: [
+                      Switch(
+                        value: _showInactive,
+                        onChanged: (v) async {
+                          setState(() => _showInactive = v);
+                          await _fetchSessions();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _showInactive
+                            ? "Afficher aussi les sessions déconnectées"
+                            : "Afficher uniquement les sessions actives",
+                        style: text.bodyMedium,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
                   Container(
                     decoration: BoxDecoration(
                       color: cs.surface,
                       borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
+                      boxShadow: const [
                         BoxShadow(
                           color: Colors.black12,
                           blurRadius: 4,
-                          offset: const Offset(0, 2),
+                          offset: Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: DataTable(
-                      headingRowColor: WidgetStateProperty.all(
-                        cs.primary.withOpacity(0.1),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowColor: WidgetStateProperty.all(
+                          cs.primary.withOpacity(0.1),
+                        ),
+                        columns: const [
+                          DataColumn(label: Text('Matricule')),
+                          DataColumn(label: Text('CSE')),
+                          DataColumn(label: Text('Rôle')),
+                          DataColumn(label: Text('Contexte')),
+                          DataColumn(label: Text('Dernière activité')),
+                          DataColumn(label: Text('Statut')),
+                          DataColumn(label: Text('')),
+                        ],
+                        rows: _sessions.map((s) {
+                          final lastActivity = DateTime.parse(
+                            s['last_activity'],
+                          );
+                          final isActive = s['is_active'] == true;
+
+                          final statusText = isActive
+                              ? _formatDuration(lastActivity)
+                              : 'Déconnecté';
+
+                          return DataRow(
+                            color: WidgetStateProperty.all(
+                              isActive
+                                  ? Colors.transparent
+                                  : Colors.red.withOpacity(0.05),
+                            ),
+                            cells: [
+                              DataCell(Text(s['matriculeaf'] ?? '')),
+                              DataCell(Text(s['cse'] ?? '-')),
+                              DataCell(
+                                Text(
+                                  s['level'] ?? '',
+                                  style: TextStyle(
+                                    color: (s['level'] == 'adm')
+                                        ? AppColors.marine
+                                        : (s['level'] == 'supuser')
+                                        ? AppColors.vert
+                                        : AppColors.ardoise,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  _formatClientKind(s['client_kind']),
+                                  style: TextStyle(
+                                    color: _clientKindColor(s['client_kind']),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  "${lastActivity.hour.toString().padLeft(2, '0')}:${lastActivity.minute.toString().padLeft(2, '0')} "
+                                  "(${lastActivity.day.toString().padLeft(2, '0')}/${lastActivity.month.toString().padLeft(2, '0')})",
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  statusText,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: isActive
+                                        ? cs.onSurface
+                                        : AppColors.rouge,
+                                  ),
+                                ),
+                              ),
+                              DataCell(
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.logout,
+                                    color: Colors.redAccent,
+                                  ),
+                                  tooltip: 'Déconnecter cette session',
+                                  onPressed: isActive
+                                      ? () => _disconnectSingleSession(s)
+                                      : null, // pas besoin de déconnecter déjà off
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
                       ),
-                      columns: const [
-                        DataColumn(label: Text('Matricule')),
-                        DataColumn(label: Text('CSE')),
-                        DataColumn(label: Text('Rôle')),
-                        DataColumn(label: Text('Dernière activité')),
-                        DataColumn(label: Text('Inactivité')),
-                        DataColumn(label: Text('')),
-                      ],
-                      rows: _sessions.map((s) {
-                        final lastActivity = DateTime.parse(s['last_activity']);
-                        return DataRow(
-                          color: WidgetStateProperty.all(
-                            s['is_active'] == true
-                                ? Colors.transparent
-                                : Colors.red.withOpacity(0.05),
-                          ),
-                          cells: [
-                            DataCell(Text(s['matriculeaf'] ?? '')),
-                            DataCell(Text(s['cse'] ?? '-')),
-                            DataCell(
-                              Text(
-                                s['level'] ?? '',
-                                style: TextStyle(
-                                  color: s['level'] == 'adm'
-                                      ? AppColors.marine
-                                      : s['level'] == 'supuser'
-                                      ? AppColors.vert
-                                      : AppColors.ardoise,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            DataCell(
-                              Text(
-                                "${lastActivity.hour.toString().padLeft(2, '0')}:${lastActivity.minute.toString().padLeft(2, '0')} "
-                                "(${lastActivity.day.toString().padLeft(2, '0')}/${lastActivity.month.toString().padLeft(2, '0')})",
-                              ),
-                            ),
-                            DataCell(Text(_formatDuration(lastActivity))),
-                            DataCell(
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.logout,
-                                  color: Colors.redAccent,
-                                ),
-                                tooltip: 'Déconnecter cet utilisateur',
-                                onPressed: () => _disconnectSingleSession(s),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
                     ),
                   ),
+
                   const SizedBox(height: 12),
                   Center(
                     child: Text(

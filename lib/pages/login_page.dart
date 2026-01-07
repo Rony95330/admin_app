@@ -1,11 +1,12 @@
+// login_page.dart
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // 📄 Page principale admin
-import '../main.dart';
-import 'admin_home.dart'; // ou import 'admin_home.dart' si tu l’as séparée
+import 'admin_home.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -63,18 +64,29 @@ class _LoginPageState extends State<LoginPage> {
     _logoutTimer?.cancel();
     _logoutTimer = Timer(const Duration(hours: 24), () async {
       await supabase.auth.signOut();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Session expirée — veuillez vous reconnecter."),
-          ),
-        );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Session expirée — veuillez vous reconnecter."),
+        ),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
     });
+  }
+
+  /// 🔧 Device id stable pour la console admin (1 fois par machine)
+  Future<String> _getOrCreateAdminConsoleDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getString('admin_console_device_id');
+    if (existing != null && existing.trim().isNotEmpty) return existing;
+
+    // Id simple (suffisant car stocké localement). Si vous préférez, on pourra passer au package uuid.
+    final created = 'adm_${DateTime.now().microsecondsSinceEpoch}';
+    await prefs.setString('admin_console_device_id', created);
+    return created;
   }
 
   /// 🔐 Connexion Supabase limitée aux admins/superusers
@@ -90,6 +102,7 @@ class _LoginPageState extends State<LoginPage> {
         email: email,
         password: password,
       );
+
       final user = res.user ?? (await supabase.auth.getUser()).user;
       if (user == null) throw const AuthException('Identifiants invalides');
 
@@ -120,19 +133,22 @@ class _LoginPageState extends State<LoginPage> {
       await _handleRememberMe();
       _startLogoutTimer();
 
-      // ✅ Enregistre l'activité dans user_sessions (sans CSE)
+      // ✅ Déclare/MAJ la session "admin_console" dans user_sessions
+      // (remplace votre ancien update_user_activity)
       try {
+        final deviceId = await _getOrCreateAdminConsoleDeviceId();
         await supabase.rpc(
-          'update_user_activity',
+          'upsert_user_session',
           params: {
-            '_user_id': user.id,
-            '_matriculeaf': profile['matriculeaf'],
-            '_cse': null, // pas de CSE ici
-            '_level': profile['level'],
+            'p_client_kind': 'admin_console',
+            'p_device_id': deviceId,
+            'p_matriculeaf': profile['matriculeaf'],
+            'p_cse': null, // pas de CSE dans la console
+            'p_level': profile['level'],
           },
         );
       } catch (e) {
-        debugPrint('⚠️ Erreur update_user_activity: $e');
+        debugPrint('⚠️ Erreur upsert_user_session (admin_console): $e');
       }
 
       if (!mounted) return;

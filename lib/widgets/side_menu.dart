@@ -4,7 +4,7 @@ import '../pages/login_page.dart';
 
 class SideMenu extends StatelessWidget {
   final int selectedIndex;
-  final Function(int) onItemSelected;
+  final ValueChanged<int> onItemSelected;
 
   const SideMenu({
     super.key,
@@ -23,10 +23,12 @@ class SideMenu extends StatelessWidget {
     // 2: NotificationsPage()
     // 3: ActiveSessionsPage()
     // 4: ActualityListPage()
-    // 5: PressReviewPage()
-    // 6: GoodiesAdminPage()     // 👈 à ajouter dans AdminHome
-    // 7: QuestionnairePage()
-    final menuItems = [
+    // 5: RevuePresseListPage()
+    // 6: GoodiesAdminPage()
+    // 7: QuestionnaireEditorPage()
+    // 8: MembersAdminPage()
+    // 9: AccordsAdminPage() ✅ AJOUT
+    final List<Map<String, dynamic>> menuItems = [
       {'icon': Icons.dashboard_outlined, 'label': 'Tableau de bord'}, // 0
       {'icon': Icons.storage_rounded, 'label': 'Base de données'}, // 1
       {
@@ -39,8 +41,13 @@ class SideMenu extends StatelessWidget {
       {
         'icon': Icons.card_giftcard_outlined,
         'label': 'Gestion des goodies',
-      }, // 6 🆕
+      }, // 6
       {'icon': Icons.poll, 'label': 'Questionnaires'}, // 7
+      {'icon': Icons.groups_2_outlined, 'label': 'Membres (syndicat)'}, // 8
+      {
+        'icon': Icons.folder_copy_outlined,
+        'label': 'Accords (upload)',
+      }, // 9 ✅ AJOUT
     ];
 
     return Container(
@@ -49,7 +56,6 @@ class SideMenu extends StatelessWidget {
       child: Column(
         children: [
           const SizedBox(height: 40),
-
           Text(
             'CFE-CGC\nAdmin Console',
             textAlign: TextAlign.center,
@@ -65,7 +71,7 @@ class SideMenu extends StatelessWidget {
             child: ListView.builder(
               itemCount: menuItems.length,
               itemBuilder: (context, index) {
-                final item = menuItems[index] as Map<String, dynamic>;
+                final item = menuItems[index];
                 return _buildMenuButton(
                   context,
                   index,
