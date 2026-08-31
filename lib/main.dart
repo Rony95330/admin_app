@@ -5,6 +5,8 @@ import 'pages/login_page.dart';
 import 'pages/admin_home.dart'; // ✅ nouvelle import
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'core/runtime_control/app_runtime_control_gate.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -14,7 +16,7 @@ void main() async {
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFmdm9ndGJkcW90YnZtcHhhbHd4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ1NjgyNzgsImV4cCI6MjA3MDE0NDI3OH0.noHGv6Oa70cKfKIefPqU_feufiYB5JOwyWLo2H4Pp3A',
   );
 
-  runApp(const AdminApp());
+  runApp(AppRuntimeControlGate(target: 'admin', child: const AdminApp()));
 }
 
 class AdminApp extends StatelessWidget {
