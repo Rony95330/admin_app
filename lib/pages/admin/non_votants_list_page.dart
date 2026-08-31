@@ -58,7 +58,7 @@ class NonVotantsListPage extends StatelessWidget {
                   '$cse\n$college',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
               ),
@@ -98,7 +98,7 @@ class NonVotantsListPage extends StatelessWidget {
             return ListView.separated(
               padding: const EdgeInsets.all(12),
               itemCount: data.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final row = data[index];
                 final nom = (row['nom'] ?? '').toString();

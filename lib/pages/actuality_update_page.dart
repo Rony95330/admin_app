@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
-import 'package:pdfx/pdfx.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../theme/brand_colors.dart';
 
@@ -104,7 +104,7 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
     final res = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
-      withData: false,
+      withData: true,
     );
     if (res != null && res.files.isNotEmpty) {
       setState(() => _pickedPdf = res.files.first);
@@ -129,27 +129,36 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
   }
 
   /// Rendu de miniature PDF
-  Future<Uint8List?> _renderPdfThumb(File file) async {
+  Future<Uint8List?> _renderPdfThumb(Uint8List pdfBytes) async {
+    PdfDocument? doc;
+    PdfImage? rendered;
+    ui.Image? image;
     try {
-      final doc = await PdfDocument.openFile(file.path);
-      final page = await doc.getPage(1);
+      await pdfrxFlutterInitialize();
+      doc = await PdfDocument.openData(pdfBytes, sourceName: 'selected.pdf');
+      if (doc.pages.isEmpty) return null;
 
-      const double targetWidth = 600.0;
-      final double scale = targetWidth / page.width;
-      final double targetHeight = page.height * scale;
-
-      final img = await page.render(
-        width: targetWidth,
-        height: targetHeight,
-        format: PdfPageImageFormat.png,
+      final page = doc.pages.first;
+      const targetWidth = 600.0;
+      final targetHeight = page.height * (targetWidth / page.width);
+      rendered = await page.render(
+        fullWidth: targetWidth,
+        fullHeight: targetHeight,
       );
+      if (rendered == null) return null;
 
-      await page.close();
-      await doc.close();
-      return img?.bytes;
+      image = await rendered.createImage();
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      return data?.buffer.asUint8List();
     } catch (e) {
-      debugPrint('⚠️ Erreur rendu miniature PDF: $e');
+      debugPrint('Erreur rendu miniature PDF: $e');
       return null;
+    } finally {
+      image?.dispose();
+      rendered?.dispose();
+      if (doc != null) {
+        await doc.dispose();
+      }
     }
   }
 
@@ -177,7 +186,10 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
       final cse = _cseCtl.text.trim();
       final title = _titleCtl.text.trim();
       final desc = _descCtl.text.trim();
-      final file = File(_pickedPdf!.path!);
+      final pdfBytes = _pickedPdf!.bytes;
+      if (pdfBytes == null || pdfBytes.isEmpty) {
+        throw StateError('Le PDF sélectionné ne contient aucune donnée exploitable.');
+      }
       final fileName = _sanitizeFileName(
         _pickedPdf!.name.isNotEmpty
             ? p.basenameWithoutExtension(_pickedPdf!.name)
@@ -190,7 +202,6 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
           'articles_admin/thumbs/$cse/${fileName}_$stamp.png';
 
       // 🟢 Upload PDF
-      final pdfBytes = await file.readAsBytes();
       await supa.storage
           .from('Articles')
           .uploadBinary(
@@ -205,7 +216,7 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
 
       // 🟣 Miniature
       String? thumbUrl;
-      final thumbBytes = await _renderPdfThumb(file);
+      final thumbBytes = await _renderPdfThumb(pdfBytes);
       if (thumbBytes != null) {
         await supa.storage
             .from('Articles')
@@ -294,7 +305,7 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.marine.withOpacity(0.05),
+                      color: AppColors.marine.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
@@ -383,7 +394,7 @@ class _ActualityUpdatePageState extends State<ActualityUpdatePage> {
                   _loadingCse
                       ? const Center(child: CircularProgressIndicator())
                       : DropdownButtonFormField<String>(
-                          value: _cseCtl.text.isNotEmpty
+                          initialValue: _cseCtl.text.isNotEmpty
                               ? _cseCtl.text
                               : _cseOptions.first,
                           items: _cseOptions

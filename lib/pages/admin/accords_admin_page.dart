@@ -181,13 +181,7 @@ class _AccordsAdminPageState extends State<AccordsAdminPage> {
         }
 
         if (name.toLowerCase().endsWith('.pdf')) {
-          DateTime? updated;
-          final raw = it.updatedAt;
-          if (raw is String) {
-            updated = DateTime.tryParse(raw);
-          } else if (raw is DateTime) {
-            updated = raw;
-          }
+          final updated = DateTime.tryParse(it.updatedAt ?? '');
 
           pdfs.add(
             _Node.file(
@@ -1097,7 +1091,7 @@ class _AccordsAdminPageState extends State<AccordsAdminPage> {
               child: AbsorbPointer(
                 absorbing: true,
                 child: Container(
-                  color: Colors.black.withOpacity(0.25),
+                  color: Colors.black.withValues(alpha: 0.25),
                   child: Center(
                     child: Container(
                       width: 320,
@@ -1198,12 +1192,12 @@ class _AdminAccordCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.88),
+            color: Colors.white.withValues(alpha: 0.88),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withOpacity(0.6), width: 1.5),
+            border: Border.all(color: color.withValues(alpha: 0.6), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.25),
+                color: color.withValues(alpha: 0.25),
                 blurRadius: 8,
                 offset: const Offset(2, 4),
               ),
@@ -1344,7 +1338,7 @@ class _BreadcrumbBar extends StatelessWidget {
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
         onPressed: onTapRoot,
-        backgroundColor: Colors.white.withOpacity(.9),
+        backgroundColor: Colors.white.withValues(alpha: .9),
       ),
     ];
     for (var i = 0; i < crumbs.length; i++) {
@@ -1362,7 +1356,7 @@ class _BreadcrumbBar extends StatelessWidget {
             ),
           ),
           onPressed: isLast ? null : () => onTapCrumb(i),
-          backgroundColor: Colors.white.withOpacity(.9),
+          backgroundColor: Colors.white.withValues(alpha: .9),
         ),
       );
     }

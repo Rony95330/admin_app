@@ -23,10 +23,10 @@ class _DatabasePageState extends State<DatabasePage> {
 
     try {
       // ⚡️ Exemple : table "users" (remplace par "effectif" si besoin)
-      final response = await supabase.from('users').select().limit(10);
+      final response = await supabase.rpc('admin_database_overview');
 
       setState(() {
-        _rows = List<Map<String, dynamic>>.from(response);
+        _rows = List<Map<String, dynamic>>.from(response as List);
       });
     } catch (e) {
       setState(() {

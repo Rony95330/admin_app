@@ -346,7 +346,7 @@ class _ActiveSessionsPageState extends State<ActiveSessionsPage> {
                       scrollDirection: Axis.horizontal,
                       child: DataTable(
                         headingRowColor: WidgetStateProperty.all(
-                          cs.primary.withOpacity(0.1),
+                          cs.primary.withValues(alpha: 0.1),
                         ),
                         columns: const [
                           DataColumn(label: Text('Matricule')),
@@ -371,7 +371,7 @@ class _ActiveSessionsPageState extends State<ActiveSessionsPage> {
                             color: WidgetStateProperty.all(
                               isActive
                                   ? Colors.transparent
-                                  : Colors.red.withOpacity(0.05),
+                                  : Colors.red.withValues(alpha: 0.05),
                             ),
                             cells: [
                               DataCell(Text(s['matriculeaf'] ?? '')),

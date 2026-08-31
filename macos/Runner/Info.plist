@@ -28,5 +28,7 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>La console CFDT utilise le microphone pour enregistrer les voix autorisées du Podcast.</string>
 </dict>
 </plist>

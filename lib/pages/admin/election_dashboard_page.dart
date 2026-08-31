@@ -101,10 +101,7 @@ class _ElectionDashboardPageState extends State<ElectionDashboardPage> {
   void _openNonVotants(BuildContext context, String cse, String college) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => NonVotantsListPage(
-          cse: cse,
-          college: college,
-        ),
+        builder: (_) => NonVotantsListPage(cse: cse, college: college),
       ),
     );
   }
@@ -157,8 +154,10 @@ class _ElectionDashboardPageState extends State<ElectionDashboardPage> {
               children: [
                 // 🔹 Bandeau global en haut
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   color: kCie,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -189,25 +188,22 @@ class _ElectionDashboardPageState extends State<ElectionDashboardPage> {
                     scrollDirection: Axis.horizontal,
                     child: SingleChildScrollView(
                       child: DataTable(
-                        headingRowColor:
-                            WidgetStateProperty.all(kMarine.withOpacity(0.9)),
+                        headingRowColor: WidgetStateProperty.all(
+                          kMarine.withValues(alpha: 0.9),
+                        ),
                         headingTextStyle: GoogleFonts.poppins(
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
                         ),
-                        dataRowHeight: 60,
+                        dataRowMinHeight: 60,
+                        dataRowMaxHeight: 60,
                         columns: [
                           const DataColumn(label: Text('CSE')),
-                          ...recap.collegeList
-                              .map(
-                                (c) => DataColumn(
-                                  label: Text(
-                                    c,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              )
-                              .toList(),
+                          ...recap.collegeList.map(
+                            (c) => DataColumn(
+                              label: Text(c, textAlign: TextAlign.center),
+                            ),
+                          ),
                           const DataColumn(label: Text('Total CSE')),
                         ],
                         rows: recap.cseList.map((cse) {
@@ -260,8 +256,7 @@ class _ElectionDashboardPageState extends State<ElectionDashboardPage> {
                                   InkWell(
                                     onTap: () {
                                       if (cell.total > cell.voted) {
-                                        _openNonVotants(
-                                            context, cse, college);
+                                        _openNonVotants(context, cse, college);
                                       }
                                     },
                                     child: Center(

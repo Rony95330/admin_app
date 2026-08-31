@@ -21,6 +21,7 @@ QuestionType questionTypeFromString(String value) {
     case 'likert_1_5':
       return QuestionType.likert1to5;
     case 'text':
+      return QuestionType.text;
     default:
       return QuestionType.text;
   }
@@ -37,7 +38,6 @@ String questionTypeToString(QuestionType type) {
     case QuestionType.likert1to5:
       return 'likert_1_5';
     case QuestionType.text:
-    default:
       return 'text';
   }
 }

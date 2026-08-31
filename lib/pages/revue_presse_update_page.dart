@@ -1,10 +1,10 @@
-import 'dart:io';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
-import 'package:pdfx/pdfx.dart';
+import 'package:pdfrx/pdfrx.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/brand_colors.dart'; // ✅ version admin_app
 
@@ -49,7 +49,7 @@ class _RevuePresseUpdatePageState extends State<RevuePresseUpdatePage> {
     final res = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
-      withData: false,
+      withData: true,
     );
     if (res != null && res.files.isNotEmpty) {
       setState(() => _pickedPdf = res.files.first);
@@ -57,26 +57,36 @@ class _RevuePresseUpdatePageState extends State<RevuePresseUpdatePage> {
     }
   }
 
-  Future<Uint8List?> _renderPdfThumb(File file) async {
+  Future<Uint8List?> _renderPdfThumb(Uint8List pdfBytes) async {
+    PdfDocument? doc;
+    PdfImage? rendered;
+    ui.Image? image;
     try {
-      final doc = await PdfDocument.openFile(file.path);
-      final page = await doc.getPage(1);
+      await pdfrxFlutterInitialize();
+      doc = await PdfDocument.openData(pdfBytes, sourceName: 'selected.pdf');
+      if (doc.pages.isEmpty) return null;
 
-      const double targetWidth = 600.0;
-      final double scale = targetWidth / page.width;
-      final double targetHeight = page.height * scale;
-
-      final img = await page.render(
-        width: targetWidth,
-        height: targetHeight,
-        format: PdfPageImageFormat.png,
+      final page = doc.pages.first;
+      const targetWidth = 600.0;
+      final targetHeight = page.height * (targetWidth / page.width);
+      rendered = await page.render(
+        fullWidth: targetWidth,
+        fullHeight: targetHeight,
       );
+      if (rendered == null) return null;
 
-      await page.close();
-      await doc.close();
-      return img?.bytes;
-    } catch (_) {
+      image = await rendered.createImage();
+      final data = await image.toByteData(format: ui.ImageByteFormat.png);
+      return data?.buffer.asUint8List();
+    } catch (e) {
+      debugPrint('Erreur rendu miniature PDF: $e');
       return null;
+    } finally {
+      image?.dispose();
+      rendered?.dispose();
+      if (doc != null) {
+        await doc.dispose();
+      }
     }
   }
 
@@ -108,8 +118,10 @@ class _RevuePresseUpdatePageState extends State<RevuePresseUpdatePage> {
 
     try {
       final title = _titleCtl.text.trim();
-
-      final file = File(_pickedPdf!.path!);
+      final pdfBytes = _pickedPdf!.bytes;
+      if (pdfBytes == null || pdfBytes.isEmpty) {
+        throw StateError('Le PDF sélectionné ne contient aucune donnée exploitable.');
+      }
       final fileName = _sanitizeFileName(
         _pickedPdf!.name.isNotEmpty
             ? p.basenameWithoutExtension(_pickedPdf!.name)
@@ -122,7 +134,6 @@ class _RevuePresseUpdatePageState extends State<RevuePresseUpdatePage> {
       final thumbStoragePath = 'revue_presse/thumbnails/${fileName}_$stamp.png';
 
       // 🟢 Upload du PDF
-      final pdfBytes = await file.readAsBytes();
       await supa.storage
           .from('revue_presse')
           .uploadBinary(
@@ -140,7 +151,7 @@ class _RevuePresseUpdatePageState extends State<RevuePresseUpdatePage> {
 
       // 🟢 Génération de la miniature
       String? imageUrl;
-      final thumbBytes = await _renderPdfThumb(file);
+      final thumbBytes = await _renderPdfThumb(pdfBytes);
       if (thumbBytes != null) {
         await supa.storage
             .from('revue_presse')

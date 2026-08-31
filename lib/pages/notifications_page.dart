@@ -19,7 +19,6 @@ class NotificationsPage extends StatefulWidget {
 class _NotificationsPageState extends State<NotificationsPage> {
   final supa = Supabase.instance.client;
   bool _loading = false;
-  String? _status;
   List<Map<String, dynamic>> _notifications = [];
   bool _sortAsc = false;
   String _sortColumn = 'created_at';
@@ -52,10 +51,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
           .order(_sortColumn, ascending: _sortAsc);
 
       // 🔄 Récupère les noms d'auteurs (si présents)
-      final users = await supa.from('users').select('id, prenom, nom');
+      final users = await supa.rpc('admin_notification_authors');
+
       final Map<String, String> userNames = {
-        for (var u in users)
-          u['id']: "${u['prenom'] ?? ''} ${u['nom'] ?? ''}".trim(),
+        for (final u in (users as List))
+          u['id'].toString(): "${u['prenom'] ?? ''} ${u['nom'] ?? ''}".trim(),
       };
 
       setState(() {
@@ -65,7 +65,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
         }).toList();
       });
     } catch (e) {
-      setState(() => _status = 'Erreur chargement : $e');
+      debugPrint('Erreur chargement notifications : $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -195,44 +195,44 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         child: DataTable(
                           sortAscending: _sortAsc,
                           headingRowColor: WidgetStateProperty.all(
-                            cs.primary.withOpacity(0.1),
+                            cs.primary.withValues(alpha: 0.1),
                           ),
                           columns: [
                             DataColumn(
                               label: const Text('ID'),
-                              onSort: (_, __) => _sortBy('id'),
+                              onSort: (_, _) => _sortBy('id'),
                             ),
                             DataColumn(
                               label: const Text('Titre'),
-                              onSort: (_, __) => _sortBy('type'),
+                              onSort: (_, _) => _sortBy('type'),
                             ),
                             DataColumn(
                               label: const Text('Message'),
-                              onSort: (_, __) => _sortBy('message'),
+                              onSort: (_, _) => _sortBy('message'),
                             ),
                             DataColumn(
                               label: const Text('CSE'),
-                              onSort: (_, __) => _sortBy('cse'),
+                              onSort: (_, _) => _sortBy('cse'),
                             ),
                             DataColumn(
                               label: const Text('Niveau'),
-                              onSort: (_, __) => _sortBy('niveau'),
+                              onSort: (_, _) => _sortBy('niveau'),
                             ),
                             DataColumn(
                               label: const Text('Métier'),
-                              onSort: (_, __) => _sortBy('metier'),
+                              onSort: (_, _) => _sortBy('metier'),
                             ),
                             DataColumn(
                               label: const Text('Auteur'),
-                              onSort: (_, __) => _sortBy('author_id'),
+                              onSort: (_, _) => _sortBy('author_id'),
                             ),
                             DataColumn(
                               label: const Text('Statut'),
-                              onSort: (_, __) => _sortBy('status'),
+                              onSort: (_, _) => _sortBy('status'),
                             ),
                             DataColumn(
                               label: const Text('Créée le'),
-                              onSort: (_, __) => _sortBy('created_at'),
+                              onSort: (_, _) => _sortBy('created_at'),
                             ),
                             const DataColumn(label: Text('Actions')),
                           ],

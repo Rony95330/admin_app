@@ -24,7 +24,7 @@ class AdminApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Console CFE-CGC Air France',
+      title: 'Console CFDT Air France',
       theme: buildLightTheme(),
       darkTheme: buildDarkTheme(),
       themeMode: ThemeMode.light,

@@ -124,7 +124,6 @@ class _RevuePresseListPageState extends State<RevuePresseListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final fmt = DateFormat('dd/MM/yyyy');
 
@@ -186,7 +185,7 @@ class _RevuePresseListPageState extends State<RevuePresseListPage> {
                                 width: 40,
                                 height: 40,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => const Icon(
+                                errorBuilder: (_, _, _) => const Icon(
                                   Icons.picture_as_pdf,
                                   color: AppColors.rose,
                                 ),

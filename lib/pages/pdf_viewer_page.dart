@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:pdfx/pdfx.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 class PdfViewerPage extends StatefulWidget {
   final String url;
@@ -21,7 +21,6 @@ class PdfViewerPage extends StatefulWidget {
 }
 
 class _PdfViewerPageState extends State<PdfViewerPage> {
-  PdfControllerPinch? _controller;
   Uint8List? _bytes;
   bool _loading = true;
   String? _error;
@@ -62,10 +61,6 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
       }
 
       _bytes = bytes;
-      _controller = PdfControllerPinch(
-        document: PdfDocument.openData(bytes),
-      );
-
       if (mounted) setState(() => _loading = false);
     } catch (e) {
       if (mounted) {
@@ -79,7 +74,6 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
 
   @override
   void dispose() {
-    _controller?.dispose();
     super.dispose();
   }
 
@@ -104,17 +98,13 @@ class _PdfViewerPageState extends State<PdfViewerPage> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
               ? _ErrorView(message: _error!, onRetry: _load)
-              : _controller == null
+              : _bytes == null
                   ? const Center(child: Text('Impossible d’ouvrir le PDF'))
                   : Container(
                       color: cs.surface,
-                      child: PdfViewPinch(
-                        controller: _controller!,
-                        onDocumentError: (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Erreur PDF: $e')),
-                          );
-                        },
+                      child: PdfViewer.data(
+                        _bytes!,
+                        sourceName: widget.title,
                       ),
                     ),
     );

@@ -432,7 +432,7 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
                             ),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<QuestionType>(
-                              value: q.type,
+                              initialValue: q.type,
                               decoration: const InputDecoration(
                                 labelText: 'Type de question',
                                 border: OutlineInputBorder(),

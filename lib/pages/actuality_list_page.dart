@@ -29,14 +29,16 @@ class _ActualityListPageState extends State<ActualityListPage> {
           .from('articles')
           .select('id, title, cse, author, published_at, pdf_url')
           .order('published_at', ascending: false);
+      if (!mounted) return;
       setState(() => _articles = List<Map<String, dynamic>>.from(res));
     } catch (e) {
       debugPrint('⚠️ Erreur chargement articles: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Erreur de chargement: $e')));
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -62,7 +64,7 @@ class _ActualityListPageState extends State<ActualityListPage> {
       ),
     );
 
-    if (confirm != true) return;
+    if (confirm != true || !mounted) return;
 
     try {
       await supa.from('articles').delete().eq('id', id);
@@ -72,6 +74,7 @@ class _ActualityListPageState extends State<ActualityListPage> {
         await supa.storage.from('Articles').remove([storagePath]);
       }
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🗑 Article supprimé.'),
@@ -82,6 +85,7 @@ class _ActualityListPageState extends State<ActualityListPage> {
       _fetchArticles();
     } catch (e) {
       debugPrint('❌ Erreur suppression: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
@@ -90,7 +94,6 @@ class _ActualityListPageState extends State<ActualityListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final fmt = DateFormat('dd/MM/yyyy');
 

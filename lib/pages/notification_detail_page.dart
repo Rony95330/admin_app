@@ -175,7 +175,7 @@ class _NotificationDetailPageState extends State<NotificationDetailPage> {
                     Text(
                       _formatDate(_createdAt!),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: cs.onSurface.withOpacity(.6),
+                        color: cs.onSurface.withValues(alpha: .6),
                       ),
                     ),
 
@@ -198,7 +198,7 @@ class _NotificationDetailPageState extends State<NotificationDetailPage> {
                             child: Image.network(
                               _attachmentUrl!,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _AttachmentTile(
+                              errorBuilder: (_, _, _) => _AttachmentTile(
                                 onTap: _openAttachment,
                                 subtitle: 'Voir la pièce jointe',
                               ),
@@ -279,7 +279,7 @@ class _AttachmentTile extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return ListTile(
       onTap: onTap,
-      tileColor: cs.surfaceVariant.withOpacity(.4),
+      tileColor: cs.surfaceContainerHighest.withValues(alpha: .4),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       leading: const Icon(Icons.attach_file),
       title: const Text('Pièce jointe'),

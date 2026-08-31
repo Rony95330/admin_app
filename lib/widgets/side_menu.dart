@@ -1,148 +1,165 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../pages/login_page.dart';
+import '../theme/brand_colors.dart';
+
+class AdminMenuItem {
+  const AdminMenuItem({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+}
 
 class SideMenu extends StatelessWidget {
-  final int selectedIndex;
-  final ValueChanged<int> onItemSelected;
-
   const SideMenu({
     super.key,
     required this.selectedIndex,
     required this.onItemSelected,
+    required this.items,
+    this.closeOnSelect = false,
   });
+
+  final int selectedIndex;
+  final ValueChanged<int> onItemSelected;
+  final List<AdminMenuItem> items;
+  final bool closeOnSelect;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
-
-    // 🧭 Ordre synchronisé avec AdminHome._pages
-    // 0: DashboardPage()
-    // 1: DatabasePage()
-    // 2: NotificationsPage()
-    // 3: ActiveSessionsPage()
-    // 4: ActualityListPage()
-    // 5: RevuePresseListPage()
-    // 6: GoodiesAdminPage()
-    // 7: QuestionnaireEditorPage()
-    // 8: MembersAdminPage()
-    // 9: AccordsAdminPage() ✅ AJOUT
-    final List<Map<String, dynamic>> menuItems = [
-      {'icon': Icons.dashboard_outlined, 'label': 'Tableau de bord'}, // 0
-      {'icon': Icons.storage_rounded, 'label': 'Base de données'}, // 1
-      {
-        'icon': Icons.notifications_active_outlined,
-        'label': 'Notifications',
-      }, // 2
-      {'icon': Icons.people_outline, 'label': 'Sessions actives'}, // 3
-      {'icon': Icons.list_alt_outlined, 'label': 'Actualités publiées'}, // 4
-      {'icon': Icons.picture_as_pdf_outlined, 'label': 'Revue de presse'}, // 5
-      {
-        'icon': Icons.card_giftcard_outlined,
-        'label': 'Gestion des goodies',
-      }, // 6
-      {'icon': Icons.poll, 'label': 'Questionnaires'}, // 7
-      {'icon': Icons.groups_2_outlined, 'label': 'Membres (syndicat)'}, // 8
-      {
-        'icon': Icons.folder_copy_outlined,
-        'label': 'Accords (upload)',
-      }, // 9 ✅ AJOUT
-    ];
-
     return Container(
-      width: 250,
-      color: cs.primary.withValues(alpha: 0.05),
-      child: Column(
-        children: [
-          const SizedBox(height: 40),
-          Text(
-            'CFE-CGC\nAdmin Console',
-            textAlign: TextAlign.center,
-            style: text.titleLarge?.copyWith(
-              color: cs.primary,
-              fontWeight: FontWeight.bold,
-              height: 1.2,
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          Expanded(
-            child: ListView.builder(
-              itemCount: menuItems.length,
-              itemBuilder: (context, index) {
-                final item = menuItems[index];
-                return _buildMenuButton(
-                  context,
-                  index,
-                  item['icon'] as IconData,
-                  item['label'] as String,
-                );
-              },
-            ),
-          ),
-
-          const Divider(thickness: 0.8, height: 1),
-          const SizedBox(height: 12),
-
-          Padding(
-            padding: const EdgeInsets.only(bottom: 20),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: cs.errorContainer.withValues(alpha: 0.85),
-                foregroundColor: cs.onErrorContainer,
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+      width: 284,
+      color: Colors.white,
+      child: SafeArea(
+        child: Column(
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: AppColors.orange,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'CFDT',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'Console admin',
+                          style: text.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.anthracite,
+                          ),
+                        ),
+                        Text(
+                          'Air France',
+                          style: text.bodySmall?.copyWith(
+                            color: AppColors.bleuPetrole,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              icon: const Icon(Icons.logout),
-              label: const Text('Se déconnecter'),
-              onPressed: () async {
-                await Supabase.instance.client.auth.signOut();
-                if (context.mounted) {
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 12,
+                ),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  final selected = selectedIndex == index;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 3),
+                    child: Material(
+                      color: selected
+                          ? AppColors.orange.withValues(alpha: 0.11)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(13),
+                      child: ListTile(
+                        dense: true,
+                        minLeadingWidth: 24,
+                        leading: Icon(
+                          item.icon,
+                          color: selected
+                              ? AppColors.orange
+                              : AppColors.anthracite.withValues(alpha: 0.72),
+                        ),
+                        title: Text(
+                          item.label,
+                          style: text.bodyMedium?.copyWith(
+                            color: selected
+                                ? AppColors.orange
+                                : AppColors.anthracite,
+                            fontWeight: selected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        selected: selected,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        onTap: () {
+                          onItemSelected(index);
+                          if (closeOnSelect) Navigator.maybePop(context);
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.danger,
+                  side: BorderSide(
+                    color: AppColors.danger.withValues(alpha: 0.45),
+                  ),
+                  minimumSize: const Size.fromHeight(46),
+                ),
+                icon: const Icon(Icons.logout),
+                label: const Text('Se déconnecter'),
+                onPressed: () async {
+                  await Supabase.instance.client.auth.signOut();
+                  if (!context.mounted) return;
                   Navigator.pushAndRemoveUntil(
                     context,
-                    MaterialPageRoute(builder: (_) => const LoginPage()),
-                    (route) => false,
+                    MaterialPageRoute<void>(builder: (_) => const LoginPage()),
+                    (_) => false,
                   );
-                }
-              },
+                },
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMenuButton(
-    BuildContext context,
-    int index,
-    IconData icon,
-    String label,
-  ) {
-    final cs = Theme.of(context).colorScheme;
-    final isSelected = index == selectedIndex;
-
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? cs.primary : cs.onSurface.withValues(alpha: 0.7),
-      ),
-      title: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? cs.primary : cs.onSurface.withValues(alpha: 0.8),
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ],
         ),
       ),
-      selected: isSelected,
-      selectedTileColor: cs.primary.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      onTap: () => onItemSelected(index),
     );
   }
 }

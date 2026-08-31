@@ -42,9 +42,12 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _loadSavedCredentials() async {
     final prefs = await SharedPreferences.getInstance();
+    // Une ancienne version stockait le mot de passe en clair. On le supprime
+    // et on ne mémorise désormais que l'adresse email.
+    await prefs.remove('saved_password');
+    if (!mounted) return;
     setState(() {
       emailController.text = prefs.getString('saved_email') ?? '';
-      passwordController.text = prefs.getString('saved_password') ?? '';
       _rememberMe = prefs.containsKey('saved_email');
     });
   }
@@ -53,11 +56,10 @@ class _LoginPageState extends State<LoginPage> {
     final prefs = await SharedPreferences.getInstance();
     if (_rememberMe) {
       await prefs.setString('saved_email', emailController.text.trim());
-      await prefs.setString('saved_password', passwordController.text.trim());
     } else {
       await prefs.remove('saved_email');
-      await prefs.remove('saved_password');
     }
+    await prefs.remove('saved_password');
   }
 
   void _startLogoutTimer() {
@@ -197,7 +199,7 @@ class _LoginPageState extends State<LoginPage> {
                   Icon(Icons.admin_panel_settings, size: 80, color: cs.primary),
                   const SizedBox(height: 24),
                   Text(
-                    'Connexion à la console CFE-CGC',
+                    'Console CFDT Air France',
                     style: text.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: cs.onSurface,

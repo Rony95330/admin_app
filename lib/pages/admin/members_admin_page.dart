@@ -203,33 +203,6 @@ class _MembersAdminPageState extends State<MembersAdminPage> {
   }
 
   // ------------------------------------------------------------
-  Future<({Uint8List bytes, String ext})?> _pickImage() async {
-    final res = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['png', 'jpg', 'jpeg'],
-      withData: true,
-    );
-    if (res == null || res.files.isEmpty) return null;
-
-    final f = res.files.first;
-    final bytes = f.bytes;
-    if (bytes == null) {
-      _showError("Impossible de lire le fichier sélectionné.");
-      return null;
-    }
-
-    final extRaw = (p.extension(f.name).replaceFirst('.', '')).toLowerCase();
-    final ext = (extRaw == 'jpeg') ? 'jpg' : extRaw;
-
-    if (ext != 'png' && ext != 'jpg') {
-      _showError("Format non supporté. Utilisez PNG ou JPG.");
-      return null;
-    }
-
-    return (bytes: bytes, ext: ext);
-  }
-
-  // ------------------------------------------------------------
   Future<({String path, String url})> _uploadPhoto({
     required String cse,
     required String name,
@@ -490,7 +463,7 @@ class _MembersAdminPageState extends State<MembersAdminPage> {
                       SizedBox(
                         width: 260,
                         child: DropdownButtonFormField<String>(
-                          value: _selectedCse,
+                          initialValue: _selectedCse,
                           isExpanded: true,
                           decoration: const InputDecoration(
                             labelText: 'Secteur (CSE) affiché',
@@ -582,7 +555,7 @@ class _MembersAdminPageState extends State<MembersAdminPage> {
                                                   photoUrl,
                                                   fit: BoxFit.cover,
                                                   errorBuilder:
-                                                      (context, _, __) =>
+                                                      (context, _, _) =>
                                                           const Icon(
                                                             Icons.broken_image,
                                                           ),
@@ -808,7 +781,7 @@ class _MemberEditDialogState extends State<_MemberEditDialog> {
           width: 90,
           height: 90,
           fit: BoxFit.cover,
-          errorBuilder: (context, _, __) => const Icon(Icons.broken_image),
+          errorBuilder: (context, _, _) => const Icon(Icons.broken_image),
         ),
       );
     } else {
@@ -878,7 +851,9 @@ class _MemberEditDialogState extends State<_MemberEditDialog> {
 
                 // ✅ Dropdown CSE dans le dialog
                 DropdownButtonFormField<String>(
-                  value: (_draft.cse.trim().isEmpty) ? null : _draft.cse.trim(),
+                  initialValue: (_draft.cse.trim().isEmpty)
+                      ? null
+                      : _draft.cse.trim(),
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Secteur (CSE)'),
                   items: cseItems,

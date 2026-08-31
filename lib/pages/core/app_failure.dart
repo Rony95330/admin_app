@@ -91,8 +91,9 @@ AppFailure mapToFailure(Object error, [StackTrace? stack]) {
 
   // Réseau
   if (error is SocketException) return NetworkFailure(raw: raw, stack: stack);
-  if (error is HandshakeException)
+  if (error is HandshakeException) {
     return NetworkFailure(raw: raw, stack: stack);
+  }
   if (error is TlsException) return NetworkFailure(raw: raw, stack: stack);
 
   // Timeout (ex. dio/http)
