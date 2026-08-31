@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../theme/brand_colors.dart';
 import '../widgets/side_menu.dart';
@@ -18,12 +19,14 @@ import 'admin/managed_collection_page.dart';
 import 'admin/members_admin_page.dart';
 import 'admin/questionnaire_editor_page.dart';
 import 'admin/rh_ai_admin_page.dart';
+import 'admin/service_availability_admin_page.dart';
 import 'dashboard_page.dart';
 import 'database_page.dart';
 import 'notifications_page.dart';
 import 'revue_presse_list_page.dart';
 
 import 'package:admin_app/pages/admin/podcast_voice_admin_page.dart';
+
 class _AdminDestination {
   const _AdminDestination({required this.menu, required this.page});
 
@@ -41,7 +44,7 @@ class AdminHome extends StatefulWidget {
 class _AdminHomeState extends State<AdminHome> {
   int _selectedIndex = 0;
 
-  static const List<_AdminDestination> _destinations = <_AdminDestination>[
+  static const List<_AdminDestination> _baseDestinations = <_AdminDestination>[
     _AdminDestination(
       menu: AdminMenuItem(
         icon: Icons.dashboard_outlined,
@@ -200,6 +203,46 @@ class _AdminHomeState extends State<AdminHome> {
       ),
       page: PodcastVoiceAdminPage(),
     ),
+  ];
+
+  bool _isSuperuser = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSuperuserAccess();
+  }
+
+  Future<void> _loadSuperuserAccess() async {
+    try {
+      final dynamic role = await Supabase.instance.client.rpc(
+        'security_current_role',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isSuperuser = role?.toString() == 'supuser';
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _isSuperuser = false;
+      });
+    }
+  }
+
+  List<_AdminDestination> get _destinations => <_AdminDestination>[
+    ..._baseDestinations,
+    if (_isSuperuser)
+      const _AdminDestination(
+        menu: AdminMenuItem(
+          icon: Icons.health_and_safety_outlined,
+          label: 'Disponibilité du service',
+        ),
+        page: ServiceAvailabilityAdminPage(),
+      ),
   ];
 
   List<AdminMenuItem> get _menuItems =>
