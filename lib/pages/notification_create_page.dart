@@ -596,6 +596,260 @@ class _NotificationCreatePageState extends State<NotificationCreatePage> {
   // ==============================================================
   // 🔹 Envoi de la notification
   // ==============================================================
+  Future<void> _previewNotification() async {
+    if (_loading) return;
+
+    final valid = _formKey.currentState?.validate() ?? false;
+    if (!valid) return;
+
+    _formKey.currentState!.save();
+
+    final uid = supa.auth.currentUser?.id;
+    if (uid == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session expirée, reconnectez-vous.')),
+      );
+      return;
+    }
+
+    String? previewOutboxId;
+    var confirmed = false;
+
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _status = null;
+    });
+
+    try {
+      final csv = filters.toCSV();
+
+      final notifMeta = {
+        'category': _selectedType?.key ?? 'custom',
+        'channel_id': _selectedType?.channelId,
+        'sound': _selectedType?.sound,
+        'color_hex': _selectedType == null
+            ? null
+            : '#${_selectedType!.color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}',
+        'icon_hint': _selectedType?.icon.codePoint,
+        'population': _popSelected.toList(),
+      };
+
+      final filtersBase64 = base64Encode(
+        utf8.encode(jsonEncode({'notif_meta': notifMeta})),
+      );
+
+      String attachmentPreviewUrl = '';
+      String thumbnailPreviewUrl = '';
+
+      if (_selectedTract != null) {
+        attachmentPreviewUrl = _selectedTract!['pdf_url'] as String? ?? '';
+        thumbnailPreviewUrl = _selectedTract!['thumb_url'] as String? ?? '';
+      }
+
+      final title = _selectedType?.defaultTitle ?? _customTitleCtl.text.trim();
+
+      final payload = {
+        'type': title,
+        'message': _message,
+        'attachment_url': attachmentPreviewUrl,
+        'thumbnail_url': thumbnailPreviewUrl,
+        'filters': filtersBase64,
+        'status': 'preview',
+        'author_id': uid,
+        'cse': csv['cse'],
+        'niveau': csv['niveau'],
+        'metier': csv['metier'],
+      };
+
+      final row = await supa
+          .from('notification_outbox')
+          .insert(payload)
+          .select('id')
+          .single();
+
+      previewOutboxId = row['id'] as String;
+
+      final res = await supa.functions.invoke(
+        'send_push_from_outbox',
+        body: {'outbox_id': previewOutboxId, 'preview_only': true},
+      );
+
+      if (res.status >= 400) {
+        throw StateError('Pré-contrôle impossible : ${res.data}');
+      }
+
+      final raw = res.data;
+      if (raw is! Map) {
+        throw StateError('Réponse de pré-contrôle invalide.');
+      }
+
+      final data = Map<String, dynamic>.from(raw);
+
+      int readInt(String key) {
+        final value = data[key];
+        if (value is num) return value.toInt();
+        return int.tryParse(value?.toString() ?? '') ?? 0;
+      }
+
+      String displayFilter(Object? value) {
+        final text = value?.toString().trim() ?? '';
+        return text.isEmpty ? 'Tous' : text;
+      }
+
+      final matchedUsers = readInt('matched_users');
+      final withoutToken = readInt('without_active_token');
+      final excludedConsent = readInt('excluded_by_consent');
+      final recipients = readInt('recipients');
+      final tokens = readInt('tokens');
+
+      var attachmentLabel = 'Aucune';
+
+      if (_selectedTract != null) {
+        attachmentLabel = 'Tract sélectionné';
+      } else if (_attachedFile != null) {
+        attachmentLabel = 'Fichier : ${_attachedFile!.name}';
+      }
+
+      if (!mounted) return;
+
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          Widget summaryItem(
+            String label,
+            String value, {
+            bool important = false,
+          }) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(
+                        dialogContext,
+                      ).colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: important ? 18 : 14,
+                      fontWeight: important ? FontWeight.w800 : FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.fact_check_outlined),
+                SizedBox(width: 10),
+                Expanded(child: Text('Vérification avant envoi')),
+              ],
+            ),
+            content: SizedBox(
+              width: 560,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    summaryItem('Titre', title),
+                    summaryItem('Message', _message),
+                    summaryItem('Population', _popSelected.join(', ')),
+                    summaryItem('CSE', displayFilter(csv['cse'])),
+                    summaryItem('Niveau', displayFilter(csv['niveau'])),
+                    summaryItem('Métier', displayFilter(csv['metier'])),
+                    summaryItem('Pièce jointe', attachmentLabel),
+                    const Divider(height: 28),
+                    summaryItem(
+                      'Utilisateurs correspondant au ciblage',
+                      '$matchedUsers',
+                    ),
+                    summaryItem('Sans appareil Push actif', '$withoutToken'),
+                    summaryItem(
+                      'Consentement Push désactivé',
+                      '$excludedConsent',
+                    ),
+                    summaryItem(
+                      'Destinataires finaux',
+                      '$recipients',
+                      important: true,
+                    ),
+                    summaryItem('Tokens à contacter', '$tokens'),
+                    if (recipients == 0)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Aucun destinataire ne peut recevoir cette notification. '
+                          'L’envoi est bloqué.',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton.icon(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Modifier'),
+              ),
+              FilledButton.icon(
+                onPressed: recipients > 0
+                    ? () => Navigator.of(dialogContext).pop(true)
+                    : null,
+                icon: const Icon(Icons.send_rounded),
+                label: const Text('Confirmer l’envoi'),
+              ),
+            ],
+          );
+        },
+      );
+
+      confirmed = result ?? false;
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _status = '❌ $e';
+        });
+      }
+    } finally {
+      if (previewOutboxId != null) {
+        try {
+          await supa
+              .from('notification_outbox')
+              .delete()
+              .eq('id', previewOutboxId);
+        } catch (e) {
+          debugPrint(
+            '⚠️ Suppression outbox de prévisualisation impossible: $e',
+          );
+        }
+      }
+
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+
+    if (confirmed && mounted) {
+      await _sendNotification();
+    }
+  }
+
   Future<void> _sendNotification() async {
     if (_loading) return;
     final valid = _formKey.currentState?.validate() ?? false;
@@ -1017,7 +1271,7 @@ class _NotificationCreatePageState extends State<NotificationCreatePage> {
               // --- Bouton envoyer ---
               Center(
                 child: ElevatedButton.icon(
-                  onPressed: _loading ? null : _sendNotification,
+                  onPressed: _loading ? null : _previewNotification,
                   icon: _loading
                       ? const SizedBox(
                           width: 18,
@@ -1027,8 +1281,8 @@ class _NotificationCreatePageState extends State<NotificationCreatePage> {
                             color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.send),
-                  label: const Text('Envoyer la notification'),
+                      : const Icon(Icons.fact_check_outlined),
+                  label: const Text('Vérifier avant envoi'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.marine,
                     foregroundColor: Colors.white,
