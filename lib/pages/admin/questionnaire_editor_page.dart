@@ -7,7 +7,9 @@ import '../questionnaire.dart';
 import '../questionnaire_service.dart';
 
 class QuestionnaireEditorPage extends StatefulWidget {
-  const QuestionnaireEditorPage({super.key});
+  final Questionnaire? initial;
+
+  const QuestionnaireEditorPage({super.key, this.initial});
 
   @override
   State<QuestionnaireEditorPage> createState() =>
@@ -60,6 +62,40 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
 
   final List<QuestionnaireQuestion> _questions = [];
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final initial = widget.initial;
+    if (initial == null) return;
+
+    _titreController.text = initial.title;
+    _descriptionController.text = initial.description ?? '';
+
+    _selectedCse
+      ..clear()
+      ..addAll(initial.cseTargets);
+
+    _selectedCategories
+      ..clear()
+      ..addAll(initial.levelTargets);
+
+    _selectedPublics
+      ..clear()
+      ..addAll(initial.populationRaw);
+
+    _dateDebut = initial.startDate;
+    _dateFin = initial.endDate;
+
+    _questions
+      ..clear()
+      ..addAll(
+        initial.questions.map(
+          (q) => QuestionnaireQuestion.fromJson(q.toJson()),
+        ),
+      );
+  }
 
   @override
   void dispose() {
@@ -153,6 +189,7 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
 
     try {
       final questionnaire = Questionnaire(
+        id: widget.initial?.id,
         title: _titreController.text.trim(),
         description: _descriptionController.text.trim().isEmpty
             ? null
@@ -160,20 +197,29 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
         cseTargets: List<String>.from(_selectedCse),
         populationRaw: publicsCodes,
         levelTargets: List<String>.from(_selectedCategories),
-        metierTargets: const [],
+        metierTargets: widget.initial?.metierTargets ?? const [],
         startDate: _dateDebut,
         endDate: _dateFin,
         questions: List<QuestionnaireQuestion>.from(_questions),
       );
 
-      final created = await _service.createQuestionnaire(questionnaire);
+      final saved = widget.initial == null
+          ? await _service.createQuestionnaire(questionnaire)
+          : await _service.updateQuestionnaire(questionnaire);
 
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Questionnaire créé (id ${created.id})')),
+        SnackBar(
+          content: Text(
+            widget.initial == null
+                ? 'Questionnaire créé (id ${saved.id})'
+                : 'Questionnaire mis à jour',
+          ),
+        ),
       );
 
-      Navigator.of(context).pop(created);
+      Navigator.of(context).pop(saved);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -198,7 +244,13 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Créer un questionnaire')),
+      appBar: AppBar(
+        title: Text(
+          widget.initial == null
+              ? 'Créer un questionnaire'
+              : 'Modifier le questionnaire',
+        ),
+      ),
       body: AbsorbPointer(
         absorbing: _saving,
         child: Stack(
@@ -531,7 +583,9 @@ class _QuestionnaireEditorPageState extends State<QuestionnaireEditorPage> {
                       label: Text(
                         _saving
                             ? 'Enregistrement...'
-                            : 'Enregistrer le questionnaire',
+                            : widget.initial == null
+                            ? 'Enregistrer le questionnaire'
+                            : 'Enregistrer les modifications',
                       ),
                     ),
                   ),

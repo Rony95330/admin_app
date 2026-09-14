@@ -17,7 +17,7 @@ import 'admin/goodies_admin_page.dart';
 import 'admin/home_banners_admin_page.dart';
 import 'admin/managed_collection_page.dart';
 import 'admin/members_admin_page.dart';
-import 'admin/questionnaire_editor_page.dart';
+import 'admin/questionnaire_management_page.dart';
 import 'admin/rh_ai_admin_page.dart';
 import 'admin/service_availability_admin_page.dart';
 import 'dashboard_page.dart';
@@ -111,7 +111,7 @@ class _AdminHomeState extends State<AdminHome> {
     ),
     _AdminDestination(
       menu: AdminMenuItem(icon: Icons.poll_outlined, label: 'Questionnaires'),
-      page: QuestionnaireEditorPage(),
+      page: QuestionnaireManagementPage(),
     ),
     _AdminDestination(
       menu: AdminMenuItem(
