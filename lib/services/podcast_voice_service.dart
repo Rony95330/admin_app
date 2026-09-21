@@ -5,6 +5,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/podcast_voice.dart';
 
+typedef PodcastVoiceProviderInvoker =
+    Future<Map<String, dynamic>> Function(Map<String, dynamic> body);
+
 class PodcastVoiceAccess {
   const PodcastVoiceAccess({required this.role, required this.cse});
 
@@ -16,8 +19,11 @@ class PodcastVoiceAccess {
 }
 
 class PodcastVoiceService {
-  PodcastVoiceService({SupabaseClient? client})
-    : _client = client ?? Supabase.instance.client;
+  PodcastVoiceService({
+    SupabaseClient? client,
+    PodcastVoiceProviderInvoker? providerInvoker,
+  }) : _clientOverride = client,
+       _providerInvoker = providerInvoker;
 
   static const String storageBucket = 'podcast_voice_samples';
 
@@ -43,7 +49,10 @@ class PodcastVoiceService {
     "CSE SYSTEMES D'INFORMATION": 'SI',
   };
 
-  final SupabaseClient _client;
+  final SupabaseClient? _clientOverride;
+  final PodcastVoiceProviderInvoker? _providerInvoker;
+
+  SupabaseClient get _client => _clientOverride ?? Supabase.instance.client;
 
   Future<PodcastVoiceAccess> loadAccess() async {
     final user = _client.auth.currentUser;
@@ -217,7 +226,48 @@ class PodcastVoiceService {
     }
   }
 
+  Future<String> registerVoice(String voiceId) async {
+    final id = voiceId.trim();
+    if (id.isEmpty) {
+      throw StateError('Voix introuvable.');
+    }
+    final body = <String, dynamic>{'action': 'register', 'voice_id': id};
+    try {
+      final Map<String, dynamic> data;
+      if (_providerInvoker != null) {
+        data = await _providerInvoker(body);
+      } else {
+        final response = await _client.functions.invoke(
+          'podcast-voice-provider',
+          body: body,
+        );
+        final raw = response.data;
+        if (raw is! Map || response.status < 200 || response.status >= 300) {
+          throw StateError('Activation impossible.');
+        }
+        data = Map<String, dynamic>.from(raw);
+      }
+      if (data['ok'] != true) {
+        throw StateError('Activation impossible.');
+      }
+      final rawVoice = data['voice'];
+      final status = rawVoice is Map
+          ? (rawVoice['provider_status'] ?? '').toString()
+          : (data['provider_status'] ?? '').toString();
+      return status.trim().toLowerCase();
+    } catch (_) {
+      throw StateError(
+        'Activation ElevenLabs impossible. Vérifiez la voix puis réessayez.',
+      );
+    }
+  }
+
   Future<PodcastVoice> setActive(PodcastVoice voice, bool active) async {
+    if (active && !voice.canToggleActive) {
+      throw StateError(
+        'Cette voix doit être prête chez ElevenLabs avant activation.',
+      );
+    }
     final row = await _client
         .from('podcast_voices')
         .update({'is_active': active})

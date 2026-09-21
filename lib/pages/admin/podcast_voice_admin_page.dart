@@ -6,14 +6,17 @@ import '../../services/podcast_voice_service.dart';
 import 'podcast_voice_editor_dialog.dart';
 
 class PodcastVoiceAdminPage extends StatefulWidget {
-  const PodcastVoiceAdminPage({super.key});
+  const PodcastVoiceAdminPage({super.key, this.service});
+
+  final PodcastVoiceService? service;
 
   @override
   State<PodcastVoiceAdminPage> createState() => _PodcastVoiceAdminPageState();
 }
 
 class _PodcastVoiceAdminPageState extends State<PodcastVoiceAdminPage> {
-  final PodcastVoiceService _service = PodcastVoiceService();
+  late final PodcastVoiceService _service =
+      widget.service ?? PodcastVoiceService();
   final AudioPlayer _player = AudioPlayer();
 
   List<PodcastVoice> _voices = const [];
@@ -24,6 +27,7 @@ class _PodcastVoiceAdminPageState extends State<PodcastVoiceAdminPage> {
   String _selectedCseFilter = _allCses;
   String? _playingVoiceId;
   final Set<String> _workingIds = <String>{};
+  final Set<String> _activatingIds = <String>{};
 
   @override
   void initState() {
@@ -98,6 +102,36 @@ class _PodcastVoiceAdminPageState extends State<PodcastVoiceAdminPage> {
     } finally {
       if (mounted) {
         setState(() => _workingIds.remove(voice.id));
+      }
+    }
+  }
+
+  Future<void> _activateProvider(PodcastVoice voice) async {
+    if (_workingIds.contains(voice.id) || !voice.canActivateProvider) return;
+    setState(() {
+      _workingIds.add(voice.id);
+      _activatingIds.add(voice.id);
+    });
+    try {
+      final status = await _service.registerVoice(voice.id);
+      await _load();
+      if (!mounted) return;
+      final message = status == 'ready'
+          ? 'Voix activée chez ElevenLabs.'
+          : 'Voix envoyée à ElevenLabs. Vérification en cours.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    } catch (_) {
+      _showError(
+        'Activation ElevenLabs impossible. Vérifiez la voix puis réessayez.',
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _workingIds.remove(voice.id);
+          _activatingIds.remove(voice.id);
+        });
       }
     }
   }
@@ -384,6 +418,14 @@ class _PodcastVoiceAdminPageState extends State<PodcastVoiceAdminPage> {
                             ),
                             label: Text(voice.providerStatusLabel),
                           ),
+                          if (voice.providerLabel != null)
+                            Chip(
+                              avatar: const Icon(
+                                Icons.cloud_done_outlined,
+                                size: 16,
+                              ),
+                              label: Text(voice.providerLabel!),
+                            ),
                         ],
                       ),
                     ],
@@ -407,13 +449,30 @@ class _PodcastVoiceAdminPageState extends State<PodcastVoiceAdminPage> {
                   ),
                   label: const Text('Écouter'),
                 ),
+                if (voice.canActivateProvider)
+                  FilledButton.icon(
+                    key: ValueKey<String>('activate-${voice.id}'),
+                    onPressed: working ? null : () => _activateProvider(voice),
+                    icon: _activatingIds.contains(voice.id)
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.cloud_upload_outlined),
+                    label: Text(
+                      _activatingIds.contains(voice.id)
+                          ? 'Activation...'
+                          : 'Activer chez ElevenLabs',
+                    ),
+                  ),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text('Active'),
                     Switch(
+                      key: ValueKey<String>('active-${voice.id}'),
                       value: voice.isActive,
-                      onChanged: working
+                      onChanged: working || !voice.canToggleActive
                           ? null
                           : (value) => _toggleActive(voice, value),
                     ),

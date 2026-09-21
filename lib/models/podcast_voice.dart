@@ -67,18 +67,38 @@ class PodcastVoice {
     return parts.isEmpty ? displayName : parts.join(' ');
   }
 
+  String get normalizedProviderStatus => providerStatus.trim().toLowerCase();
+
+  bool get hasProviderVoiceId => (providerVoiceId ?? '').trim().isNotEmpty;
+
+  bool get isElevenLabsReady =>
+      normalizedProviderStatus == 'ready' && hasProviderVoiceId;
+
+  bool get canActivateProvider =>
+      normalizedProviderStatus == 'not_registered' &&
+      consentAccepted &&
+      samplePath.trim().isNotEmpty &&
+      consentRecordingPath.trim().isNotEmpty;
+
+  bool get canToggleActive => isElevenLabsReady;
+
   String get providerStatusLabel {
-    switch (providerStatus) {
+    switch (normalizedProviderStatus) {
       case 'pending':
-        return 'Enregistrement fournisseur en cours';
+        return 'Activation en cours';
       case 'ready':
-        return 'Voix prête';
+        return hasProviderVoiceId ? 'ElevenLabs prêt' : 'Activation incomplète';
       case 'failed':
-        return 'Erreur fournisseur';
+        return 'Échec d’activation';
       default:
-        return 'Enregistrée localement';
+        return 'Non activée chez ElevenLabs';
     }
   }
+
+  String? get providerLabel =>
+      provider?.trim().toLowerCase() == 'elevenlabs' && hasProviderVoiceId
+      ? 'ElevenLabs'
+      : null;
 
   static String? _nullableText(dynamic value) {
     final text = value?.toString().trim() ?? '';
